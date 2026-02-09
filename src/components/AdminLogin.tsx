@@ -82,12 +82,14 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
                     {error}
                   </motion.p>
                 )}
-                <p className="text-xs text-slate-400">Default password: 9886510858@Tcbadmin</p>
+                {false && (
+  <p className="text-xs text-slate-400"> Default password: 9886510858@Tcbadmin </p>
+             )}
               </div>
               <Button 
                 type="submit" 
                 className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white glow-button border-0 py-6 text-lg rounded-xl"
-              >
+               >
                 <Shield className="w-5 h-5 mr-2" />
                 Login to Admin Panel
               </Button>
