@@ -1,9 +1,10 @@
+import image_404faa741eb4394d917a24330c1566de438eea2b from 'figma:asset/404faa741eb4394d917a24330c1566de438eea2b.png'
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, HeadphonesIcon, X, Bot, User as UserIcon, Bell, MessageSquare, ShieldCheck, Clock, Check, CheckCheck, ChevronDown } from 'lucide-react';
+import { Send, HeadphonesIcon, X, Bot, User as UserIcon, Bell, MessageSquare, Clock, Check, CheckCheck, Sparkles } from 'lucide-react';
 import { storageUtils } from '../utils/storage';
 import { ChatConversation, ChatMessage, User, PopupMessage } from '../types/index';
 import { toast } from 'sonner@2.0.3';
@@ -20,17 +21,14 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
   const [adminNotifications, setAdminNotifications] = useState<PopupMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Polling interval for new messages
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Load or create conversation
     const loadConversation = () => {
       const conversations = storageUtils.getChatConversations();
       let userConversation = conversations.find(c => c.userId === user.id);
       
       if (!userConversation) {
-        // Create new conversation
         userConversation = {
           id: Date.now().toString(),
           userId: user.id,
@@ -50,7 +48,6 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
 
     loadConversation();
     
-    // Load Admin Notifications from Popup Messages
     const popups = storageUtils.getPopupMessages();
     const userPopups = popups.filter(p => 
       p.isActive && 
@@ -59,13 +56,11 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
     );
     setAdminNotifications(userPopups.sort((a, b) => b.priority - a.priority));
     
-    // Set up polling to check for admin replies since we use local storage
     pollingRef.current = setInterval(() => {
       const conversations = storageUtils.getChatConversations();
       const updatedConv = conversations.find(c => c.userId === user.id);
       if (updatedConv) {
         setConversation(prev => {
-          // Only update if message count changed to avoid unnecessary re-renders
           if (prev && updatedConv.messages.length !== prev.messages.length) {
             return updatedConv;
           }
@@ -118,7 +113,6 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
     setConversation(updatedConversation);
     if (!textOverride) setMessage('');
     
-    // AI Auto-reply simulation if enabled
     const aiConfig = storageUtils.getAIConfig();
     if (aiConfig.isEnabled && aiConfig.autoReply) {
       setTimeout(() => {
@@ -126,15 +120,14 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
           id: (Date.now() + 1).toString(),
           conversationId: conversation.id,
           userId: 'ai-bot',
-          userName: 'Toodies AI',
+          userName: 'Toodies Butler',
           userEmail: 'ai@toodies.com',
-          message: aiConfig.greetingMessage || "Thank you for reaching out! One of our team members will get back to you shortly. In the meantime, feel free to check our help articles.",
+          message: aiConfig.greetingMessage || "Your request is being processed with the utmost priority. A Toodies ambassador will be with you momentarily.",
           sender: 'ai',
           timestamp: new Date().toISOString(),
           read: false
         };
         
-        // Re-read current conversation to avoid clobbering other messages
         const latestConvs = storageUtils.getChatConversations();
         const currentConv = latestConvs.find(c => c.id === conversation.id);
         if (currentConv) {
@@ -200,23 +193,23 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
       initial={{ opacity: 0, scale: 0.95, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, y: 20 }}
-      className="fixed inset-0 md:inset-auto md:bottom-6 md:right-6 md:w-[380px] md:h-[600px] z-50 flex items-end md:items-center justify-center md:justify-end p-0 md:p-4"
+      className="fixed inset-0 md:inset-auto md:bottom-6 md:right-6 md:w-[400px] md:h-[650px] z-50 flex items-end md:items-center justify-center md:justify-end p-0 md:p-4 selection:bg-[#d4af37]/30"
     >
-      <Card className="glass-card border-2 border-cyan-500/30 w-full h-full md:h-[600px] flex flex-col overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+      <Card className="glass-card border-[#d4af37]/30 w-full h-full md:h-[650px] flex flex-col overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.8)] rounded-[32px] luxury-glow bg-black">
         {/* Header */}
-        <CardHeader className="border-b border-cyan-500/20 flex-shrink-0 bg-[#0a0f1d]/90 backdrop-blur-xl p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                <HeadphonesIcon className="w-5 h-5 text-white" />
+        <CardHeader className="border-b border-white/5 flex-shrink-0 bg-black/80 backdrop-blur-3xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-[18px] bg-[#d4af37]/10 flex items-center justify-center border border-[#d4af37]/20 shadow-[0_0_20px_rgba(212,175,55,0.1)]">
+                <HeadphonesIcon className="w-6 h-6 text-[#d4af37]" />
               </div>
               <div>
-                <CardTitle className="text-cyan-100 text-base flex items-center gap-2">
-                  Toodies Hub
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <CardTitle className="text-white text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                  Toodies Concierge
+                  <span className="w-2 h-2 rounded-full bg-[#d4af37] animate-pulse shadow-[0_0_8px_#d4af37]" />
                 </CardTitle>
-                <CardDescription className="text-slate-400 text-[9px] uppercase tracking-widest font-bold">
-                  24/7 Support & Updates
+                <CardDescription className="text-slate-500 text-[9px] uppercase tracking-[3px] font-bold">
+                  Bespoke Support 24/7
                 </CardDescription>
               </div>
             </div>
@@ -224,40 +217,38 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="text-slate-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg h-9 w-9 transition-all flex-shrink-0 border border-slate-700/30 hover:border-red-500/50"
-              title="Close Help Center"
+              className="text-slate-500 hover:text-white hover:bg-white/5 rounded-xl h-10 w-10 transition-all border border-white/5"
             >
               <X className="w-5 h-5" />
             </Button>
           </div>
 
-          {/* Tab Selector */}
-          <div className="flex p-1 bg-black/40 rounded-xl border border-white/5">
+          <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10">
             <Button
               onClick={() => setActiveTab('chat')}
               variant="ghost"
-              className={`flex-1 h-10 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all gap-2 ${
+              className={`flex-1 h-11 rounded-xl text-[10px] font-bold uppercase tracking-[2px] transition-all gap-2 ${
                 activeTab === 'chat' 
-                  ? 'bg-gradient-to-r from-cyan-500/20 to-teal-500/20 text-cyan-400 shadow-[inset_0_0_10px_rgba(6,182,212,0.1)] border border-cyan-500/20' 
+                  ? 'bg-[#d4af37] text-black shadow-lg shadow-[#d4af37]/20' 
                   : 'text-slate-500 hover:text-slate-300'
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5" />
-              Support Chat
+              Chat
             </Button>
             <Button
               onClick={() => setActiveTab('notifications')}
               variant="ghost"
-              className={`flex-1 h-10 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all gap-2 relative ${
+              className={`flex-1 h-11 rounded-xl text-[10px] font-bold uppercase tracking-[2px] transition-all gap-2 relative ${
                 activeTab === 'notifications' 
-                  ? 'bg-gradient-to-r from-teal-500/20 to-cyan-500/20 text-teal-400 shadow-[inset_0_0_10px_rgba(20,184,166,0.1)] border border-teal-500/20' 
+                  ? 'bg-[#d4af37] text-black shadow-lg shadow-[#d4af37]/20' 
                   : 'text-slate-500 hover:text-slate-300'
               }`}
             >
               <Bell className="w-3.5 h-3.5" />
-              Notifications
+              Updates
               {adminNotifications.length > 0 && (
-                <span className="absolute top-1.5 right-2 w-4 h-4 bg-red-500 text-white text-[8px] flex items-center justify-center rounded-full border-2 border-[#0a0f1d] animate-bounce">
+                <span className="absolute top-2 right-3 w-4 h-4 bg-white text-black text-[8px] font-black flex items-center justify-center rounded-full border-2 border-black animate-bounce">
                   {adminNotifications.length}
                 </span>
               )}
@@ -266,7 +257,7 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
         </CardHeader>
 
         {/* Content Area */}
-        <CardContent className="flex-1 overflow-hidden p-0 flex flex-col bg-[#050810]/50">
+        <CardContent className="flex-1 overflow-hidden p-0 flex flex-col bg-black/40">
           <AnimatePresence mode="wait">
             {activeTab === 'chat' ? (
               <motion.div 
@@ -276,51 +267,36 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
                 exit={{ opacity: 0, x: 10 }}
                 className="flex-1 flex flex-col overflow-hidden"
               >
-                {/* Chat Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 space-y-1 custom-scrollbar">
                   {!conversation || conversation.messages.length === 0 ? (
-                    <div className="text-center py-8 flex flex-col items-center">
-                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border-2 border-cyan-500/20 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(6,182,212,0.1)]">
-                        <MessageSquare className="w-10 h-10 text-cyan-500/50" />
+                    <div className="text-center py-12 flex flex-col items-center">
+                      <div className="w-24 h-24 rounded-[32px] bg-[#d4af37]/5 border border-[#d4af37]/10 flex items-center justify-center mb-8 relative">
+                        <div className="absolute inset-0 bg-[#d4af37]/5 rounded-[32px] blur-2xl animate-pulse" />
+                        <Sparkles src={image_404faa741eb4394d917a24330c1566de438eea2b} className="w-10 h-10 text-[#d4af37]/40 relative z-10" />
                       </div>
-                      <h3 className="text-cyan-100 text-xl font-bold mb-2">Need Help?</h3>
-                      <p className="text-slate-400 text-sm max-w-[280px] mb-6 leading-relaxed">
-                        Our support team is ready to assist you. Select a topic below to start.
+                      <h3 className="text-white text-2xl font-black uppercase tracking-tight mb-3">Exquisite Assistance</h3>
+                      <p className="text-slate-500 text-sm max-w-[260px] mb-10 leading-relaxed font-light">
+                        How may we elevate your Toodies experience today? Select a consultation topic below.
                       </p>
                       
-                      {/* Quick Action Buttons */}
-                      <div className="w-full max-w-[320px] space-y-2">
-                        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 text-center">Popular Topics</h4>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start h-auto py-3 px-4 bg-slate-800/40 hover:bg-slate-800/70 border border-cyan-500/10 hover:border-cyan-500/30 rounded-xl transition-all"
-                          onClick={() => handleQuickAction("I need help with my order tracking")}
-                        >
-                          <div className="text-left">
-                            <div className="text-sm font-semibold text-cyan-100">Track My Order</div>
-                            <div className="text-[10px] text-slate-500">Get order status and shipping info</div>
-                          </div>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start h-auto py-3 px-4 bg-slate-800/40 hover:bg-slate-800/70 border border-cyan-500/10 hover:border-cyan-500/30 rounded-xl transition-all"
-                          onClick={() => handleQuickAction("How do I use the 3D designer tool?")}
-                        >
-                          <div className="text-left">
-                            <div className="text-sm font-semibold text-cyan-100">3D Designer Help</div>
-                            <div className="text-[10px] text-slate-500">Learn how to customize products</div>
-                          </div>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start h-auto py-3 px-4 bg-slate-800/40 hover:bg-slate-800/70 border border-cyan-500/10 hover:border-cyan-500/30 rounded-xl transition-all"
-                          onClick={() => handleQuickAction("What are your payment and pricing options?")}
-                        >
-                          <div className="text-left">
-                            <div className="text-sm font-semibold text-cyan-100">Payment & Pricing</div>
-                            <div className="text-[10px] text-slate-500">Available payment methods</div>
-                          </div>
-                        </Button>
+                      <div className="w-full max-w-[320px] space-y-3">
+                        {[
+                          { title: "Curation Status", desc: "Track your bespoke order" },
+                          { title: "Atelier Inquiry", desc: "Help with the designer tool" },
+                          { title: "Fiscal Support", desc: "Payment & refund protocols" }
+                        ].map((topic, i) => (
+                          <Button
+                            key={i}
+                            variant="ghost"
+                            className="w-full justify-start h-auto py-4 px-5 bg-white/[0.02] hover:bg-[#d4af37]/5 border border-white/5 hover:border-[#d4af37]/30 rounded-2xl transition-all group"
+                            onClick={() => handleQuickAction(`I require information regarding ${topic.title.toLowerCase()}`)}
+                          >
+                            <div className="text-left">
+                              <div className="text-[11px] font-black text-white uppercase tracking-widest group-hover:text-[#d4af37] transition-colors">{topic.title}</div>
+                              <div className="text-[9px] text-slate-600 uppercase tracking-tighter mt-1">{topic.desc}</div>
+                            </div>
+                          </Button>
+                        ))}
                       </div>
                     </div>
                   ) : (
@@ -332,133 +308,112 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
                         
                         return (
                           <div key={msg.id}>
-                            {/* Date Separator */}
                             {showDateSeparator && (
-                              <div className="flex items-center justify-center my-6">
-                                <div className="flex items-center gap-3 px-4 py-1.5 bg-slate-900/60 border border-cyan-500/10 rounded-full">
-                                  <Clock className="w-3 h-3 text-cyan-500/50" />
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                    {formatDate(msg.timestamp)}
-                                  </span>
-                                </div>
+                              <div className="flex items-center justify-center my-8">
+                                <div className="h-px w-12 bg-white/5" />
+                                <span className="text-[9px] font-black text-slate-600 uppercase tracking-[3px] mx-4">
+                                  {formatDate(msg.timestamp)}
+                                </span>
+                                <div className="h-px w-12 bg-white/5" />
                               </div>
                             )}
 
-                            {/* Message */}
                             <div
-                              className={`flex gap-2.5 ${msg.sender === 'customer' ? 'justify-end' : 'justify-start'} ${isGrouped ? 'mt-1' : 'mt-4'}`}
+                              className={`flex gap-3 ${msg.sender === 'customer' ? 'justify-end' : 'justify-start'} ${isGrouped ? 'mt-1' : 'mt-6'}`}
                             >
-                              {/* Avatar - only show if not grouped */}
                               {msg.sender !== 'customer' && !isGrouped && (
-                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 border border-cyan-500/20 flex items-center justify-center flex-shrink-0 shadow-lg">
+                                <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
                                   {msg.sender === 'ai' ? (
-                                    <Bot className="w-4 h-4 text-cyan-400" />
+                                    <Bot className="w-4 h-4 text-[#d4af37]" />
                                   ) : (
-                                    <HeadphonesIcon className="w-4 h-4 text-teal-400" />
+                                    <HeadphonesIcon className="w-4 h-4 text-[#d4af37]" />
                                   )}
                                 </div>
                               )}
                               
-                              {/* Spacer for grouped messages */}
-                              {msg.sender !== 'customer' && isGrouped && (
-                                <div className="w-8" />
-                              )}
+                              {msg.sender !== 'customer' && isGrouped && <div className="w-9" />}
                               
-                              <div className={`flex flex-col ${msg.sender === 'customer' ? 'items-end' : 'items-start'} max-w-[75%]`}>
-                                {/* Sender name - only show if not grouped */}
+                              <div className={`flex flex-col ${msg.sender === 'customer' ? 'items-end' : 'items-start'} max-w-[80%]`}>
                                 {!isGrouped && (
-                                  <span className={`text-[9px] font-bold uppercase tracking-wider mb-1.5 ${
-                                    msg.sender === 'customer' ? 'text-cyan-400' : 
-                                    msg.sender === 'ai' ? 'text-cyan-400' : 'text-teal-400'
+                                  <span className={`text-[8px] font-black uppercase tracking-[2px] mb-2 px-1 ${
+                                    msg.sender === 'customer' ? 'text-[#d4af37]' : 'text-slate-500'
                                   }`}>
-                                    {msg.sender === 'customer' ? 'You' : 
-                                     msg.sender === 'ai' ? 'Toodies AI' : 'Support Team'}
+                                    {msg.sender === 'customer' ? 'Client' : 
+                                     msg.sender === 'ai' ? 'Butler' : 'Ambassador'}
                                   </span>
                                 )}
                                 
-                                {/* Message bubble */}
                                 <div
-                                  className={`rounded-2xl px-4 py-2.5 shadow-lg transition-all hover:shadow-xl ${
+                                  className={`rounded-2xl px-5 py-3.5 text-[13px] leading-relaxed shadow-lg ${
                                     msg.sender === 'customer'
-                                      ? 'bg-gradient-to-br from-cyan-600 to-teal-600 text-white rounded-tr-md'
-                                      : msg.sender === 'ai'
-                                      ? 'bg-gradient-to-br from-slate-800 to-slate-900 text-slate-200 border border-cyan-500/20 rounded-tl-md'
-                                      : 'bg-gradient-to-br from-slate-800 to-slate-900 text-slate-200 border border-teal-500/20 rounded-tl-md'
+                                      ? 'bg-[#d4af37] text-black font-medium rounded-tr-sm'
+                                      : 'bg-white/[0.03] text-slate-200 border border-white/10 rounded-tl-sm'
                                   }`}
                                 >
-                                  <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                                  <p className="whitespace-pre-wrap">{msg.message}</p>
                                 </div>
                                 
-                                {/* Timestamp and status */}
-                                <div className={`flex items-center gap-2 mt-1 px-1 ${msg.sender === 'customer' ? 'flex-row-reverse' : 'flex-row'}`}>
-                                  <span className="text-[9px] font-semibold text-slate-600 tracking-tight">
+                                <div className={`flex items-center gap-2 mt-2 px-1 ${msg.sender === 'customer' ? 'flex-row-reverse' : 'flex-row'}`}>
+                                  <span className="text-[8px] font-bold text-slate-700 tracking-tighter uppercase">
                                     {formatTime(msg.timestamp)}
                                   </span>
                                   {msg.sender === 'customer' && (
                                     <div className="flex items-center">
                                       {msg.read ? (
-                                        <CheckCheck className="w-3 h-3 text-cyan-500" />
+                                        <CheckCheck className="w-3 h-3 text-[#d4af37]" />
                                       ) : (
-                                        <Check className="w-3 h-3 text-slate-600" />
+                                        <Check className="w-3 h-3 text-slate-800" />
                                       )}
                                     </div>
                                   )}
                                 </div>
                               </div>
 
-                              {/* Customer Avatar */}
                               {msg.sender === 'customer' && !isGrouped && (
-                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 border border-cyan-400/30 flex items-center justify-center flex-shrink-0 shadow-lg shadow-cyan-500/20">
-                                  <UserIcon className="w-4 h-4 text-white" />
+                                <div className="w-9 h-9 rounded-xl bg-[#d4af37]/10 border border-[#d4af37]/30 flex items-center justify-center flex-shrink-0">
+                                  <UserIcon className="w-4 h-4 text-[#d4af37]" />
                                 </div>
                               )}
                               
-                              {/* Spacer for grouped customer messages */}
-                              {msg.sender === 'customer' && isGrouped && (
-                                <div className="w-8" />
-                              )}
+                              {msg.sender === 'customer' && isGrouped && <div className="w-9" />}
                             </div>
                           </div>
                         );
                       })}
-                      
-                      {/* Scroll to bottom indicator */}
                       <div ref={messagesEndRef} className="h-4" />
                     </>
                   )}
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 bg-gradient-to-t from-[#0a0f1d] to-[#0a0f1d]/80 border-t border-cyan-500/10 backdrop-blur-xl">
-                  <div className="flex gap-2 relative">
+                <div className="p-6 bg-black border-t border-white/5">
+                  <div className="flex gap-3 relative">
                     <Input
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
-                      placeholder="Type your message..."
-                      className="bg-slate-900/80 border-cyan-500/30 text-cyan-50 placeholder:text-slate-600 focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/20 h-12 rounded-xl pr-14 transition-all shadow-inner"
+                      placeholder="Compose your message..."
+                      className="bg-white/5 border-white/10 text-white placeholder:text-slate-700 focus:border-[#d4af37]/50 h-14 rounded-2xl pr-16 transition-all"
                     />
                     <Button
                       onClick={() => handleSendMessage()}
                       disabled={!message.trim()}
-                      className="absolute right-1.5 top-1.5 w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white border-0 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/30 transition-all p-0 flex items-center justify-center hover:scale-105 active:scale-95"
+                      className="absolute right-2 top-2 w-10 h-10 rounded-xl bg-[#d4af37] hover:bg-[#c9a227] text-black border-0 disabled:opacity-20 transition-all p-0 shadow-lg shadow-[#d4af37]/10"
                     >
                       <Send className="w-4 h-4" />
                     </Button>
                   </div>
-                  <div className="mt-2.5 flex items-center justify-center gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-[9px] text-slate-500 font-semibold tracking-wide">
-                        Support online
-                      </span>
+                  <div className="mt-4 flex items-center justify-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-[#d4af37] animate-pulse" />
+                      <span className="text-[8px] text-slate-600 font-black uppercase tracking-[2px]">Ambassadors Active</span>
                     </div>
-                    <span className="text-slate-700">•</span>
-                    <div className="flex items-center gap-1.5">
-                      <ShieldCheck className="w-3 h-3 text-cyan-500/40" />
-                      <span className="text-[9px] text-slate-600 font-semibold tracking-wide">
-                        Encrypted
-                      </span>
+                    <div className="w-1 h-1 rounded-full bg-slate-800" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 text-slate-700">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                      </div>
+                      <span className="text-[8px] text-slate-600 font-black uppercase tracking-[2px]">Secure Channel</span>
                     </div>
                   </div>
                 </div>
@@ -469,24 +424,22 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"
+                className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-bold text-teal-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Bell className="w-3 h-3" />
-                    Notifications
+                  <h3 className="text-[10px] font-black text-[#d4af37] uppercase tracking-[3px] flex items-center gap-2">
+                    <Bell className="w-3.5 h-3.5" />
+                    Protocol Updates
                   </h3>
-                  <span className="text-[10px] text-slate-500 bg-slate-900/50 px-2 py-0.5 rounded-full border border-white/5">
-                    {adminNotifications.length} Total
+                  <span className="text-[8px] text-slate-600 bg-white/5 px-2.5 py-1 rounded-full border border-white/5 font-black uppercase tracking-tighter">
+                    {adminNotifications.length} Archives
                   </span>
                 </div>
                 
                 {adminNotifications.length === 0 ? (
-                  <div className="text-center py-24 flex flex-col items-center opacity-40">
-                    <div className="w-16 h-16 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center mb-4">
-                      <Bell className="w-6 h-6 text-slate-600" />
-                    </div>
-                    <p className="text-slate-500 text-sm italic">No recent updates.</p>
+                  <div className="text-center py-32 flex flex-col items-center opacity-20">
+                    <Bell className="w-12 h-12 text-slate-500 mb-6" />
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[3px]">No new transmissions.</p>
                   </div>
                 ) : (
                   adminNotifications.map((notif) => (
@@ -494,61 +447,58 @@ export function HelpCenter({ user, onClose }: HelpCenterProps) {
                       key={notif.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-gradient-to-r from-slate-800/40 to-slate-900/40 border border-teal-500/20 rounded-2xl p-5 relative overflow-hidden group hover:border-teal-500/50 transition-all shadow-md"
+                      className="bg-white/[0.02] border border-white/5 rounded-[24px] p-6 relative overflow-hidden group hover:border-[#d4af37]/30 transition-all duration-500"
                     >
-                      {/* Decorative side accent */}
-                      <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-teal-500 to-cyan-500 opacity-50" />
+                      <div className="absolute top-0 left-0 w-1 h-full bg-[#d4af37] opacity-20" />
                       
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className={`p-1.5 rounded-lg ${
-                            notif.type === 'coupon' ? 'bg-amber-500/20 text-amber-400' :
-                            notif.type === 'success' ? 'bg-green-500/20 text-green-400' :
-                            notif.type === 'warning' ? 'bg-red-500/20 text-red-400' :
-                            'bg-cyan-500/20 text-cyan-400'
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-xl ${
+                            notif.type === 'coupon' ? 'bg-[#d4af37]/10 text-[#d4af37]' :
+                            'bg-white/5 text-white'
                           }`}>
-                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <Sparkles className="w-4 h-4" />
                           </div>
-                          <h4 className="text-teal-100 font-bold text-sm tracking-tight">{notif.title}</h4>
+                          <h4 className="text-white font-black text-sm uppercase tracking-tight">{notif.title}</h4>
                         </div>
-                        <span className="text-[8px] font-black text-white/40 uppercase bg-black/40 px-2 py-1 rounded-md border border-white/5 tracking-tighter">
-                          Admin
+                        <span className="text-[7px] font-black text-slate-700 uppercase bg-white/5 px-2 py-1 rounded-md border border-white/5 tracking-[2px]">
+                          Official
                         </span>
                       </div>
                       
-                      <p className="text-slate-300 text-xs leading-relaxed mb-4">
+                      <p className="text-slate-400 text-xs leading-relaxed font-light mb-6">
                         {notif.message}
                       </p>
                       
-                      <div className="flex items-center justify-between mt-auto">
-                        <span className="text-[10px] text-slate-500 font-medium">
+                      <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                        <span className="text-[8px] text-slate-600 font-black uppercase tracking-[2px]">
                           {new Date(notif.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                         </span>
                         {notif.link && (
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-8 text-[10px] font-bold text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg px-4 border border-cyan-500/10"
+                            className="h-8 text-[9px] font-black text-[#d4af37] hover:text-white uppercase tracking-[2px] transition-colors"
                             onClick={() => window.open(notif.link, '_blank')}
                           >
-                            {notif.linkText || 'Learn More'}
+                            Explore Detail
                           </Button>
                         )}
                       </div>
                       
                       {notif.couponCode && (
-                        <div className="mt-3 p-2 bg-amber-500/5 border border-amber-500/10 rounded-lg flex items-center justify-between">
-                          <code className="text-[10px] font-mono text-amber-400 font-bold">{notif.couponCode}</code>
+                        <div className="mt-4 p-3 bg-[#d4af37]/5 border border-[#d4af37]/10 rounded-xl flex items-center justify-between">
+                          <code className="text-[11px] font-mono text-[#d4af37] font-black tracking-widest">{notif.couponCode}</code>
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="h-6 text-[8px] text-amber-400/70"
+                            className="h-7 text-[8px] font-black text-[#d4af37]/60 uppercase tracking-widest"
                             onClick={() => {
                               navigator.clipboard.writeText(notif.couponCode!);
-                              toast.success('Coupon copied!');
+                              toast.success('Protocol code secured.');
                             }}
                           >
-                            COPY
+                            Secure Code
                           </Button>
                         </div>
                       )}

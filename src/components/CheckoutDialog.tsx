@@ -1,26 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent } from './ui/card';
-import { ShoppingCart, MapPin, Link as LinkIcon, Package } from 'lucide-react';
-import { motion } from 'motion/react';
+import { ShoppingCart, MapPin, Package } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { CartItem, Product } from '../types';
 
 interface CheckoutDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onProceedToPayment: (shippingAddress: string, designUrl: string) => void;
+  onProceedToPayment: (shippingAddress: string) => void;
   cart: CartItem[];
   products: Product[];
   total: number;
   discount?: number;
   couponCode?: string;
   shippingAddress?: string;
-  customDesignUrl?: string;
 }
 
 export function CheckoutDialog({ 
@@ -32,17 +29,14 @@ export function CheckoutDialog({
   total,
   discount = 0,
   couponCode,
-  shippingAddress: initialAddress = '',
-  customDesignUrl: initialDesignUrl = ''
+  shippingAddress: initialAddress = ''
 }: CheckoutDialogProps) {
   const [shippingAddress, setShippingAddress] = useState(initialAddress);
-  const [designUrl, setDesignUrl] = useState(initialDesignUrl);
 
   // Update when initial values change
   useEffect(() => {
     setShippingAddress(initialAddress);
-    setDesignUrl(initialDesignUrl);
-  }, [initialAddress, initialDesignUrl, isOpen]);
+  }, [initialAddress, isOpen]);
 
   const handleProceed = () => {
     if (!shippingAddress.trim()) {
@@ -50,7 +44,7 @@ export function CheckoutDialog({
       return;
     }
 
-    onProceedToPayment(shippingAddress, designUrl);
+    onProceedToPayment(shippingAddress);
   };
 
   return (
@@ -140,29 +134,6 @@ export function CheckoutDialog({
                   className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 min-h-24"
                   required
                 />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Design URL (Optional) */}
-          <Card className="glass-card border border-cyan-500/20">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <LinkIcon className="w-5 h-5 text-purple-400" />
-                <h3 className="text-lg font-bold text-cyan-100">Custom Design</h3>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-cyan-100">Design URL (Optional)</Label>
-                <Input
-                  placeholder="https://example.com/my-custom-design"
-                  value={designUrl}
-                  onChange={(e) => setDesignUrl(e.target.value)}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
-                />
-                <p className="text-xs text-slate-500">
-                  If you've created a custom design using our 3D designer tool, paste the link here
-                </p>
               </div>
             </CardContent>
           </Card>

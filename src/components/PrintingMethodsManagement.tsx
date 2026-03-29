@@ -17,8 +17,12 @@ interface PrintingMethod {
   technicalSpecs?: string; // Technical specifications or language code
   previewInstructions?: string; // Instructions for 3D designer preview
   costPerSquareInch: number; // Cost per square inch (₹/inch²)
+  enableCostPerInch?: boolean; // Enable/disable cost per inch calculation
   minimumCharge?: number; // Minimum charge for very small designs
+  enableMinimumCharge?: boolean; // Enable/disable minimum charge
   isActive: boolean;
+  enabled?: boolean; // Enable/disable this method for customers
+  showPrice?: boolean; // Show/hide price to customers
   createdAt: string;
 }
 
@@ -32,8 +36,12 @@ export function PrintingMethodsManagement() {
     technicalSpecs: '',
     previewInstructions: '',
     costPerSquareInch: 0,
+    enableCostPerInch: true,
     minimumCharge: 0,
+    enableMinimumCharge: true,
     isActive: true,
+    enabled: true,
+    showPrice: true,
   });
 
   useEffect(() => {
@@ -61,8 +69,12 @@ export function PrintingMethodsManagement() {
 }`,
           previewInstructions: 'Apply solid color overlay with slight texture. Show matte finish effect.',
           costPerSquareInch: 4,
+          enableCostPerInch: true,
           minimumCharge: 50,
+          enableMinimumCharge: true,
           isActive: true,
+          enabled: true,
+          showPrice: true,
           createdAt: new Date().toISOString(),
         },
         {
@@ -79,8 +91,12 @@ export function PrintingMethodsManagement() {
 }`,
           previewInstructions: 'Show photo-realistic print with soft hand feel. Display full color gradients.',
           costPerSquareInch: 8,
+          enableCostPerInch: true,
           minimumCharge: 100,
+          enableMinimumCharge: true,
           isActive: true,
+          enabled: true,
+          showPrice: true,
           createdAt: new Date().toISOString(),
         },
         {
@@ -97,8 +113,12 @@ export function PrintingMethodsManagement() {
 }`,
           previewInstructions: 'Apply glossy or matte vinyl effect with raised texture. Show crisp edges.',
           costPerSquareInch: 6,
+          enableCostPerInch: true,
           minimumCharge: 75,
+          enableMinimumCharge: true,
           isActive: true,
+          enabled: true,
+          showPrice: true,
           createdAt: new Date().toISOString(),
         },
         {
@@ -116,8 +136,12 @@ export function PrintingMethodsManagement() {
 }`,
           previewInstructions: 'Show vibrant, embedded color throughout fabric. Display seamless all-over design.',
           costPerSquareInch: 10,
+          enableCostPerInch: true,
           minimumCharge: 150,
+          enableMinimumCharge: true,
           isActive: true,
+          enabled: true,
+          showPrice: true,
           createdAt: new Date().toISOString(),
         },
         {
@@ -135,8 +159,12 @@ export function PrintingMethodsManagement() {
 }`,
           previewInstructions: 'Show 3D raised thread effect with texture mapping. Display stitch patterns.',
           costPerSquareInch: 12,
+          enableCostPerInch: true,
           minimumCharge: 200,
+          enableMinimumCharge: true,
           isActive: true,
+          enabled: true,
+          showPrice: true,
           createdAt: new Date().toISOString(),
         },
       ];
@@ -196,8 +224,13 @@ export function PrintingMethodsManagement() {
       description: method.description,
       technicalSpecs: method.technicalSpecs || '',
       previewInstructions: method.previewInstructions || '',
-      costPerUnit: method.costPerUnit,
+      costPerSquareInch: method.costPerSquareInch,
+      enableCostPerInch: method.enableCostPerInch !== undefined ? method.enableCostPerInch : true,
+      minimumCharge: method.minimumCharge || 0,
+      enableMinimumCharge: method.enableMinimumCharge !== undefined ? method.enableMinimumCharge : true,
       isActive: method.isActive,
+      enabled: method.enabled !== undefined ? method.enabled : true,
+      showPrice: method.showPrice !== undefined ? method.showPrice : true,
     });
     setEditingId(method.id);
     setIsAdding(true);
@@ -220,8 +253,12 @@ export function PrintingMethodsManagement() {
       technicalSpecs: '',
       previewInstructions: '',
       costPerSquareInch: 0,
+      enableCostPerInch: true,
       minimumCharge: 0,
+      enableMinimumCharge: true,
       isActive: true,
+      enabled: true,
+      showPrice: true,
     });
     setIsAdding(false);
     setEditingId(null);
@@ -304,6 +341,7 @@ export function PrintingMethodsManagement() {
                       value={formData.costPerSquareInch}
                       onChange={(e) => setFormData({ ...formData, costPerSquareInch: parseFloat(e.target.value) || 0 })}
                       className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
+                      disabled={!formData.enableCostPerInch}
                     />
                   </div>
 
@@ -321,8 +359,40 @@ export function PrintingMethodsManagement() {
                       value={formData.minimumCharge || ''}
                       onChange={(e) => setFormData({ ...formData, minimumCharge: parseFloat(e.target.value) || 0 })}
                       className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
+                      disabled={!formData.enableMinimumCharge}
                     />
                     <p className="text-xs text-slate-400">Minimum cost for very small designs (leave 0 for no minimum)</p>
+                  </div>
+                </div>
+
+                {/* Pricing Controls */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                    <div>
+                      <Label className="text-blue-100 flex items-center gap-2">
+                        <IndianRupee className="w-4 h-4" />
+                        Enable Cost Per Inch Calculation
+                      </Label>
+                      <p className="text-xs text-slate-400 mt-1">Calculate printing cost based on design area (square inches)</p>
+                    </div>
+                    <Switch
+                      checked={formData.enableCostPerInch}
+                      onCheckedChange={(checked) => setFormData({ ...formData, enableCostPerInch: checked })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl">
+                    <div>
+                      <Label className="text-orange-100 flex items-center gap-2">
+                        <IndianRupee className="w-4 h-4" />
+                        Enable Minimum Charge
+                      </Label>
+                      <p className="text-xs text-slate-400 mt-1">Apply minimum charge regardless of design size</p>
+                    </div>
+                    <Switch
+                      checked={formData.enableMinimumCharge}
+                      onCheckedChange={(checked) => setFormData({ ...formData, enableMinimumCharge: checked })}
+                    />
                   </div>
                 </div>
 
@@ -384,6 +454,37 @@ export function PrintingMethodsManagement() {
                   />
                 </div>
 
+                {/* Customer Visibility Controls */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
+                    <div>
+                      <Label className="text-cyan-100 flex items-center gap-2">
+                        <Eye className="w-4 h-4" />
+                        Enable for Customers
+                      </Label>
+                      <p className="text-xs text-slate-400 mt-1">Show this printing method to customers in designer</p>
+                    </div>
+                    <Switch
+                      checked={formData.enabled}
+                      onCheckedChange={(checked) => setFormData({ ...formData, enabled: checked })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-gold-500/10 border border-gold-500/30 rounded-xl">
+                    <div>
+                      <Label className="text-gold-100 flex items-center gap-2">
+                        <IndianRupee className="w-4 h-4" />
+                        Show Price to Customers
+                      </Label>
+                      <p className="text-xs text-slate-400 mt-1">Display cost details in the designer interface</p>
+                    </div>
+                    <Switch
+                      checked={formData.showPrice}
+                      onCheckedChange={(checked) => setFormData({ ...formData, showPrice: checked })}
+                    />
+                  </div>
+                </div>
+
                 <div className="flex gap-3 pt-4">
                   <Button
                     onClick={editingId ? handleUpdate : handleAdd}
@@ -434,11 +535,23 @@ export function PrintingMethodsManagement() {
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="text-lg font-semibold text-purple-100">{method.name}</h3>
-                        <Badge variant={method.isActive ? 'default' : 'secondary'} className={method.isActive ? 'bg-green-500/20 text-green-300' : ''}>
+                        <Badge variant={method.isActive ? 'default' : 'secondary'} className={method.isActive ? 'bg-green-500/20 text-green-300 border-green-500/30' : ''}>
                           {method.isActive ? 'Active' : 'Inactive'}
                         </Badge>
+                        {method.enabled !== false && (
+                          <Badge className="bg-cyan-500/20 text-cyan-300 border-cyan-500/30">
+                            <Eye className="w-3 h-3 mr-1" />
+                            Visible to Customers
+                          </Badge>
+                        )}
+                        {method.showPrice !== false && (
+                          <Badge className="bg-gold-500/20 text-gold-300 border-gold-500/30">
+                            <IndianRupee className="w-3 h-3 mr-1" />
+                            Price Shown
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-slate-300 mb-3">{method.description}</p>
                       <div className="flex items-center gap-4 text-xs text-slate-400">

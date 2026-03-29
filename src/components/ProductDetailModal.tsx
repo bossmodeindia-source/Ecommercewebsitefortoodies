@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Product, ProductVariation } from '../types';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Badge } from './ui/badge';
 import { Label } from './ui/label';
-import { ShoppingCart, Check, Palette, Ruler, Info } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Heart, Share2, Star, Truck, Shield, RefreshCw, X, Sparkles, Package, Ruler, Palette, Check, Info } from 'lucide-react';
+import { Product, ProductVariation, ThreeDModelConfig } from '../types';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { motion, AnimatePresence } from 'motion/react';
-import { TwoDDesigner } from './TwoDDesigner';
+import { Advanced2DDesigner } from './Advanced2DDesigner';
 import { storageUtils } from '../utils/storage';
 import { toast } from 'sonner';
 
@@ -16,15 +17,16 @@ interface ProductDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddToCart: (productId: string, variationId: string, quantity: number) => void;
+  onBuyNow?: (productId: string, variationId: string, quantity: number) => void;
 }
 
-export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: ProductDetailModalProps) {
+export function ProductDetailModal({ product, isOpen, onClose, onAddToCart, onBuyNow }: ProductDetailModalProps) {
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [is2DDesignerOpen, setIs2DDesignerOpen] = useState(false);
-  const [modelConfig, setModelConfig] = useState<any>(null);
+  const [modelConfig, setModelConfig] = useState<ThreeDModelConfig | null>(null);
 
   // Initialize selected variation based on color and size
   useEffect(() => {
@@ -62,6 +64,13 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   const handleAddToCart = () => {
     if (selectedVariation) {
       onAddToCart(product.id, selectedVariation.id, quantity);
+      onClose();
+    }
+  };
+
+  const handleBuyNow = () => {
+    if (selectedVariation && onBuyNow) {
+      onBuyNow(product.id, selectedVariation.id, quantity);
       onClose();
     }
   };
@@ -129,17 +138,17 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent aria-describedby={undefined} className="max-w-4xl max-h-[90vh] overflow-y-auto bg-[#0a0e1a] border-cyan-500/20 glass-card p-0 rounded-3xl overflow-hidden">
-        <div className="grid md:grid-cols-2 gap-0 h-full">
+      <DialogContent aria-describedby={undefined} className="max-w-4xl max-h-[90vh] bg-black border-2 border-cyan-500/30 p-0 rounded-3xl overflow-hidden">
+        <div className="grid md:grid-cols-2 gap-0 h-full max-h-[90vh]">
           {/* Left Side: Image Gallery */}
-          <div className="relative bg-[#0f172a]/50 p-6 flex items-center justify-center border-r border-cyan-500/10">
+          <div className="relative bg-[#0f172a] p-8 flex items-center justify-center border-r border-cyan-500/20">
             <AnimatePresence mode="wait">
               <motion.div
                 key={product.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="w-full aspect-[4/5] relative rounded-2xl overflow-hidden shadow-2xl border border-white/5"
+                className="w-full aspect-[4/5] relative rounded-2xl overflow-hidden shadow-2xl border border-cyan-500/30"
               >
                 <ImageWithFallback
                   src={product.image || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800'}
@@ -150,44 +159,47 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
               </motion.div>
             </AnimatePresence>
             
-            <div className="absolute top-10 left-10">
-              <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-[10px] font-bold tracking-widest uppercase">
+            <div className="absolute top-6 left-6">
+              <span className="px-4 py-2 rounded-full bg-cyan-500/30 border border-cyan-500/50 text-cyan-300 text-xs font-bold tracking-widest uppercase">
                 Premium Collection
               </span>
             </div>
           </div>
 
-          {/* Right Side: Product Info */}
-          <div className="p-8 space-y-8">
-            <DialogHeader className="space-y-2">
-              <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-widest">
-                <span>{product.category}</span>
-                <span>•</span>
-                <span className="text-cyan-400">{product.gender}</span>
-              </div>
-              <DialogTitle className="text-3xl font-bold text-white tracking-tight">
-                {product.name}
-              </DialogTitle>
-              <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
-                  ₹{selectedVariation ? selectedVariation.price.toLocaleString('en-IN') : product.basePrice.toLocaleString('en-IN')}
-                </span>
-                {selectedVariation && selectedVariation.price > product.basePrice && (
-                  <span className="text-slate-500 line-through text-sm">₹{product.basePrice.toLocaleString('en-IN')}</span>
-                )}
-              </div>
-            </DialogHeader>
+          {/* Right Side: Product Info - Scrollable */}
+          <div className="overflow-y-auto bg-black">
+            <div className="p-8 space-y-6">
+              <DialogHeader className="space-y-3">
+                <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                  <span>{product.category}</span>
+                  <span>•</span>
+                  <span className="text-cyan-400">{product.gender}</span>
+                </div>
+                <DialogTitle className="text-4xl font-bold text-white tracking-tight leading-tight">
+                  {product.name}
+                </DialogTitle>
+                <div className="flex items-baseline gap-3 pt-2">
+                  <span className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
+                    ₹{selectedVariation ? selectedVariation.price.toLocaleString('en-IN') : product.basePrice.toLocaleString('en-IN')}
+                  </span>
+                  {selectedVariation && selectedVariation.price > product.basePrice && (
+                    <span className="text-slate-500 line-through text-lg">₹{product.basePrice.toLocaleString('en-IN')}</span>
+                  )}
+                </div>
+              </DialogHeader>
 
-            <div className="space-y-6">
-              <p className="text-slate-400 leading-relaxed text-sm">
-                {product.description}
-              </p>
+              {/* Description */}
+              <div className="pt-4 border-t border-white/10">
+                <p className="text-slate-300 leading-relaxed">
+                  {product.description}
+                </p>
+              </div>
 
               {/* Color Selection */}
-              <div className="space-y-3">
+              <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                    <Palette className="w-3 h-3" />
+                  <Label className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-cyan-400" />
                     Color: <span className="text-cyan-400">{selectedColor || 'Select'}</span>
                   </Label>
                 </div>
@@ -196,8 +208,8 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                     <button
                       key={color}
                       onClick={() => setSelectedColor(color)}
-                      className={`group relative w-10 h-10 rounded-full border-2 transition-all p-0.5 ${
-                        selectedColor === color ? 'border-cyan-400 scale-110' : 'border-white/10 hover:border-white/30'
+                      className={`group relative w-12 h-12 rounded-full border-2 transition-all p-0.5 ${ 
+                        selectedColor === color ? 'border-cyan-400 scale-110 shadow-lg shadow-cyan-500/50' : 'border-white/20 hover:border-white/40'
                       }`}
                       title={color}
                     >
@@ -207,7 +219,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                       />
                       {selectedColor === color && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <Check className={`w-4 h-4 ${['white', 'yellow', 'beige'].includes(color.toLowerCase()) ? 'text-black' : 'text-white'}`} />
+                          <Check className={`w-5 h-5 ${['white', 'yellow', 'beige'].includes(color.toLowerCase()) ? 'text-black' : 'text-white'}`} />
                         </div>
                       )}
                     </button>
@@ -216,15 +228,17 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
               </div>
 
               {/* Size Selection */}
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                    <Ruler className="w-3 h-3" />
+                  <Label className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <Ruler className="w-4 h-4 text-cyan-400" />
                     Size: <span className="text-cyan-400">{selectedSize || 'Select'}</span>
                   </Label>
-                  <button className="text-[10px] text-slate-500 hover:text-cyan-400 underline uppercase tracking-widest transition-colors font-bold">Size Guide</button>
+                  <button className="text-xs text-cyan-400 hover:text-cyan-300 underline uppercase tracking-wider transition-colors font-bold">
+                    Size Guide
+                  </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {uniqueSizes.map((size) => {
                     const isAvailable = product.variations.some(v => v.size === size && (selectedColor ? v.color === selectedColor : true));
                     return (
@@ -232,12 +246,12 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                         key={size}
                         disabled={!isAvailable}
                         onClick={() => setSelectedSize(size)}
-                        className={`min-w-[50px] h-10 px-3 rounded-lg border text-sm font-bold transition-all ${
+                        className={`min-w-[60px] h-12 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
                           selectedSize === size
-                            ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
+                            ? 'bg-cyan-500/30 border-cyan-500 text-cyan-300 shadow-lg shadow-cyan-500/30'
                             : isAvailable
-                            ? 'bg-white/5 border-white/10 text-slate-300 hover:border-white/30 hover:bg-white/10'
-                            : 'bg-transparent border-white/5 text-slate-700 cursor-not-allowed'
+                            ? 'bg-white/5 border-white/20 text-white hover:border-cyan-500/50 hover:bg-white/10'
+                            : 'bg-transparent border-white/10 text-slate-700 cursor-not-allowed'
                         }`}
                       >
                         {size}
@@ -249,81 +263,105 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
 
               {/* Quantity & Stock Info */}
               {selectedVariation && (
-                <div className="flex items-end gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <div className="space-y-3 flex-1">
-                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-bold text-white uppercase tracking-wider">
                       Quantity
                     </Label>
-                    <Select
-                      value={quantity.toString()}
-                      onValueChange={(val) => setQuantity(parseInt(val))}
-                    >
-                      <SelectTrigger className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 h-11 rounded-xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#0f172a] border-cyan-500/30 text-slate-200">
-                        {Array.from({ length: Math.min(selectedVariation.stock, 10) }, (_, i) => i + 1).map(num => (
-                          <SelectItem key={num} value={num.toString()}>
-                            {num}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="mb-3">
-                    <p className={`text-xs font-bold uppercase tracking-wider ${selectedVariation.stock < 10 ? 'text-orange-400' : 'text-green-400'}`}>
+                    <p className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${
+                      selectedVariation.stock < 10 
+                        ? 'text-orange-300 bg-orange-500/20 border border-orange-500/30' 
+                        : 'text-green-300 bg-green-500/20 border border-green-500/30'
+                    }`}>
                       {selectedVariation.stock < 10 ? `Only ${selectedVariation.stock} left!` : 'In Stock'}
                     </p>
                   </div>
+                  <Select
+                    value={quantity.toString()}
+                    onValueChange={(val) => setQuantity(parseInt(val))}
+                  >
+                    <SelectTrigger className="bg-[#0f172a] border-2 border-cyan-500/30 text-white h-12 rounded-xl hover:border-cyan-500/50 transition-colors">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#0f172a] border-cyan-500/30 text-white">
+                      {Array.from({ length: Math.min(selectedVariation.stock, 10) }, (_, i) => i + 1).map(num => (
+                        <SelectItem key={num} value={num.toString()}>
+                          {num}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
-              {/* Printing Methods Tag */}
-              {product.printingMethods.length > 0 && (
-                <div className="pt-4 border-t border-white/5">
-                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 block">Available Print Methods</Label>
+              {/* Printing Methods */}
+              {product.printingMethods && product.printingMethods.length > 0 && (
+                <div className="pt-4 border-t border-white/10">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 block">
+                    Available Print Methods
+                  </Label>
                   <div className="flex flex-wrap gap-2">
                     {product.printingMethods.map((method) => (
-                      <span key={method} className="bg-white/5 border border-white/10 text-slate-400 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                      <span 
+                        key={method} 
+                        className="bg-purple-500/20 border border-purple-500/30 text-purple-300 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider"
+                      >
                         {method}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
-            </div>
 
-            <div className="pt-4 space-y-4">
-              {/* 3D Designer Button */}
-              {modelConfig && (
+              {/* Action Buttons */}
+              <div className="pt-6 space-y-3 border-t border-white/10">
+                {/* 3D Designer Button */}
+                {modelConfig && (
+                  <Button
+                    className="w-full py-6 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold text-base border-0 shadow-xl transition-all active:scale-[0.98]"
+                    onClick={handle2DDesignerClick}
+                  >
+                    <Palette className="w-5 h-5 mr-3" />
+                    Create Custom Design
+                  </Button>
+                )}
+                
+                {/* Add to Cart Button */}
                 <Button
-                  className="w-full py-6 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold border-0 glow-button shadow-2xl transition-all active:scale-[0.98]"
-                  onClick={handle2DDesignerClick}
+                  className="w-full py-6 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white font-bold text-base border-0 shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                  onClick={handleAddToCart}
+                  disabled={!selectedVariation}
                 >
-                  <Palette className="w-5 h-5 mr-3" />
-                  Create 3D Design
+                  <ShoppingCart className="w-5 h-5 mr-3" />
+                  {selectedVariation 
+                    ? `Add to Cart • ₹${(selectedVariation.price * quantity).toLocaleString('en-IN')}` 
+                    : 'Select Color & Size'}
                 </Button>
-              )}
-              
-              <Button
-                className="w-full py-7 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white font-bold text-lg border-0 glow-button shadow-2xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
-                onClick={handleAddToCart}
-                disabled={!selectedVariation}
-              >
-                <ShoppingCart className="w-5 h-5 mr-3" />
-                {selectedVariation 
-                  ? `Add to Cart • ₹${(selectedVariation.price * quantity).toLocaleString('en-IN')}` 
-                  : 'Select Color & Size'}
-              </Button>
-              
-              <div className="flex items-center justify-center gap-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                <div className="flex items-center gap-1.5">
-                  <Info className="w-3 h-3" />
-                  Free Shipping
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Info className="w-3 h-3" />
-                  10-Day Returns
+                
+                {/* Buy Now Button */}
+                {onBuyNow && (
+                  <Button
+                    className="w-full py-6 rounded-xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-white font-bold text-base border-0 shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                    onClick={handleBuyNow}
+                    disabled={!selectedVariation}
+                  >
+                    <ShoppingCart className="w-5 h-5 mr-3" />
+                    {selectedVariation 
+                      ? `Buy Now • ₹${(selectedVariation.price * quantity).toLocaleString('en-IN')}` 
+                      : 'Select Color & Size'}
+                  </Button>
+                )}
+                
+                {/* Info Footer */}
+                <div className="flex items-center justify-center gap-6 text-xs font-bold text-slate-500 uppercase tracking-widest pt-4">
+                  <div className="flex items-center gap-2">
+                    <Info className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Free Shipping</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Info className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>10-Day Returns</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -333,11 +371,12 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
 
       {/* 3D Designer Modal */}
       {modelConfig && (
-        <TwoDDesigner
+        <Advanced2DDesigner
           isOpen={is2DDesignerOpen}
           onClose={() => setIs2DDesignerOpen(false)}
           modelConfig={modelConfig}
           productName={product.name}
+          productId={product.id}
           onSaveDesign={handleSaveDesign}
         />
       )}

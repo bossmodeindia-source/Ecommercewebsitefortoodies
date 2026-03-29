@@ -1,36 +1,62 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Label } from './ui/label';
-import { Lock, Shield } from 'lucide-react';
+import { Lock, Shield, Mail } from 'lucide-react';
 import { motion } from 'motion/react';
-import { storageUtils } from '../utils/storage';
+import { authApi } from '../utils/supabaseApi';
 
 interface AdminLoginProps {
   onLogin: () => void;
 }
 
 export function AdminLogin({ onLogin }: AdminLoginProps) {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Version check
+  console.log('🔧 AdminLogin Component v2.0.0 - Supabase Auth (Secure)');
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (storageUtils.verifyAdminPassword(password)) {
-      storageUtils.setAdminAuth(true);
-      onLogin();
-    } else {
-      setError('Invalid password');
+    setError('');
+    setLoading(true);
+
+    try {
+      console.log('🔑 Attempting admin login via Supabase...');
+      
+      // Use Supabase API for authentication
+      const result = await authApi.adminSignin(email, password);
+      
+      console.log('📋 Login result received');
+      
+      if (result && result.user) {
+        console.log('✅ Admin login successful - User:', result.user);
+        setTimeout(() => {
+          setLoading(false);
+          onLogin();
+        }, 500);
+        return;
+      } else {
+        console.error('❌ Login failed - No user in result');
+        setError('Login failed - Please try again');
+        setLoading(false);
+      }
+    } catch (err: any) {
+      console.error('❌ Login error:', err);
+      setError(err.message || 'Invalid credentials. Please check your email and password.');
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0e1a] relative overflow-hidden p-4">
+    <div className="min-h-screen flex items-center justify-center bg-black relative overflow-hidden p-4 selection:bg-[#d4af37]/30">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-[#d4af37]/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#d4af37]/3 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
 
       <motion.div
@@ -38,44 +64,64 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md relative z-10"
       >
-        <div className="glass-card border border-cyan-500/20 p-8 rounded-[32px] shadow-2xl backdrop-blur-2xl">
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-cyan-500/20 to-teal-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-cyan-500/30">
-              <Shield className="w-10 h-10 text-cyan-400" />
+        <div className="glass-card border border-[#d4af37]/20 p-10 rounded-[40px] shadow-2xl backdrop-blur-2xl bg-black/60 luxury-glow">
+          <div className="text-center mb-10">
+            <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37]/20 to-[#c9a227]/20 rounded-[20px] flex items-center justify-center mx-auto mb-6 border border-[#d4af37]/30">
+              <Shield className="w-10 h-10 text-[#d4af37]" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Secure Access</h1>
-            <p className="text-slate-400 text-sm">Authorized personnel only</p>
+            <h1 className="text-3xl font-black text-white mb-2 uppercase tracking-[2px] glow-text">Admin Access</h1>
+            <p className="text-slate-500 text-sm font-light">Enter Master Password</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-300">Access Key</Label>
+          <form onSubmit={handleLogin} className="space-y-6" id="admin-login-form">
+            <div className="space-y-3">
+              <Label htmlFor="email" className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px] ml-1">Email</Label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter email"
+                  className="pl-14 bg-white/5 border-white/10 text-white h-16 rounded-2xl focus:border-[#d4af37]/50 focus:ring-0 transition-all"
+                  required
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="password" className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px] ml-1">Master Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
                 <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="pl-12 bg-white/5 border-white/10 text-white h-14 rounded-2xl focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                  placeholder="Enter master password"
+                  className="pl-14 bg-white/5 border-white/10 text-white h-16 rounded-2xl focus:border-[#d4af37]/50 focus:ring-0 transition-all"
+                  required
                 />
               </div>
-              {error && <p className="text-red-400 text-xs mt-2 ml-1">{error}</p>}
             </div>
+
+            {error && <p className="text-red-400 text-xs ml-1">{error}</p>}
 
             <Button 
               type="submit" 
-              className="w-full h-14 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white rounded-2xl font-bold border-0 shadow-lg shadow-cyan-900/20"
+              disabled={loading}
+              className="glow-button w-full h-16 rounded-2xl font-black text-lg shadow-lg border-0 disabled:opacity-50"
             >
-              Verify Credentials
+              {loading ? 'Verifying...' : 'Access Dashboard'}
             </Button>
           </form>
           
-          <div className="mt-8 text-center">
+          <div className="mt-10 text-center">
             <button 
               onClick={() => window.location.href = '/'}
-              className="text-xs text-slate-500 hover:text-cyan-400 transition-colors uppercase tracking-widest font-bold"
+              className="text-[10px] text-slate-500 hover:text-[#d4af37] transition-colors uppercase tracking-[4px] font-bold"
             >
               Return to Brand Site
             </button>

@@ -394,7 +394,7 @@ export function CustomerManagement() {
 
       {/* Edit Customer Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="glass-card border-2 border-cyan-500/30 bg-[#0a0e1a] max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent aria-describedby={undefined} className="glass-card border-2 border-cyan-500/30 bg-[#0a0e1a] max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl text-cyan-100 flex items-center gap-2">
               <Edit2 className="w-6 h-6 text-cyan-400" />

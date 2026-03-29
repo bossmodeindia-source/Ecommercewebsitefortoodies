@@ -1,10 +1,11 @@
 
   import { defineConfig } from 'vite';
-  import react from '@vitejs/plugin-react-swc';
+  import react from '@vitejs/plugin-react';
+  import tailwindcss from '@tailwindcss/vite';
   import path from 'path';
 
   export default defineConfig({
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -18,10 +19,13 @@
         'lucide-react@0.487.0': 'lucide-react',
         'input-otp@1.4.2': 'input-otp',
         'figma:asset/d31f1d417f75594ba1ab67a4c64ef32e85ec2234.png': path.resolve(__dirname, './src/assets/d31f1d417f75594ba1ab67a4c64ef32e85ec2234.png'),
+        'figma:asset/c561690211cdd59869b2af6c111db0bf09f362da.png': path.resolve(__dirname, './src/assets/c561690211cdd59869b2af6c111db0bf09f362da.png'),
+        'figma:asset/404faa741eb4394d917a24330c1566de438eea2b.png': path.resolve(__dirname, './src/assets/404faa741eb4394d917a24330c1566de438eea2b.png'),
         'figma:asset/0384d838979de15e8db05f2eef126aa9e88613fe.png': path.resolve(__dirname, './src/assets/0384d838979de15e8db05f2eef126aa9e88613fe.png'),
         'embla-carousel-react@8.6.0': 'embla-carousel-react',
         'cmdk@1.1.1': 'cmdk',
         'class-variance-authority@0.7.1': 'class-variance-authority',
+        '@supabase/supabase-js@2': '@supabase/supabase-js',
         '@radix-ui/react-tooltip@1.1.8': '@radix-ui/react-tooltip',
         '@radix-ui/react-toggle@1.1.2': '@radix-ui/react-toggle',
         '@radix-ui/react-toggle-group@1.1.2': '@radix-ui/react-toggle-group',
@@ -47,6 +51,7 @@
         '@radix-ui/react-aspect-ratio@1.1.2': '@radix-ui/react-aspect-ratio',
         '@radix-ui/react-alert-dialog@1.1.6': '@radix-ui/react-alert-dialog',
         '@radix-ui/react-accordion@1.2.3': '@radix-ui/react-accordion',
+        '@jsr/supabase__supabase-js@2.49.8': '@jsr/supabase__supabase-js',
         '@': path.resolve(__dirname, './src'),
       },
     },

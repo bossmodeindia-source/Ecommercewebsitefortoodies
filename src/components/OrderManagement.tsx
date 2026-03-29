@@ -3,36 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { 
-  Package, 
-  Truck, 
-  MapPin, 
-  Send, 
-  CheckCircle, 
-  Clock, 
-  Phone, 
-  Mail, 
-  Palette, 
-  ExternalLink, 
-  Layout, 
-  Camera,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  FileText,
-  Download
-} from 'lucide-react';
+import { Badge } from './ui/badge';
+import { Package, Clock, Mail, Phone, MapPin, ChevronUp, ChevronDown, ExternalLink, Download, Copy, Camera, Palette, Truck, CheckCircle, Send, DollarSign, FileText, Layout } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { storageUtils } from '../utils/storage';
-import { notificationService } from '../utils/notifications';
+import { ordersApi, invoicesApi } from '../utils/supabaseApi';
 import { Order, Product, Invoice } from '../types';
 import { toast } from 'sonner@2.0.3';
 import { InvoiceEditor } from './InvoiceEditor';
 import { downloadInvoiceAsPDF } from './InvoicePreview';
 import { invoiceUtils } from '../utils/invoiceGenerator';
 import { downloadDesignSheetAsPDF, DesignSheetData } from './DesignSheetPreview';
+import { storageUtils } from '../utils/storage';
+import { notificationService } from '../utils/notifications';
 
 export function OrderManagement() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -43,47 +26,123 @@ export function OrderManagement() {
   const [trackingUrl, setTrackingUrl] = useState('');
   const [isInvoiceEditorOpen, setIsInvoiceEditorOpen] = useState(false);
   const [editingOrderForInvoice, setEditingOrderForInvoice] = useState<Order | null>(null);
+  const [currentInvoiceData, setCurrentInvoiceData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Prepaid payment state
+  const [prepaidOrder, setPrepaidOrder] = useState<Order | null>(null);
+  const [prepaidAmount, setPrepaidAmount] = useState('');
+  const [prepaidReference, setPrepaidReference] = useState('');
+  const [prepaidNotes, setPrepaidNotes] = useState('');
 
   useEffect(() => {
     loadOrders();
     loadProducts();
   }, []);
 
-  const loadOrders = () => {
-    const allOrders = storageUtils.getOrders();
-    setOrders(allOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  const loadOrders = async () => {
+    setLoading(true);
+    try {
+      // Fetch orders from Supabase
+      const supabaseOrders = await ordersApi.getAll();
+      
+      // Map database fields to app fields
+      const mappedOrders = supabaseOrders.map((order: any) => ({
+        id: order.id,
+        userId: order.user_id,
+        userEmail: order.user_email || 'N/A',
+        userMobile: order.user_phone || 'N/A',
+        items: order.order_items?.map((item: any) => ({
+          productId: item.product_id,
+          productName: item.product_name,
+          variationId: item.variation_id,
+          quantity: item.quantity,
+          price: parseFloat(item.price),
+          customDesignUrl: item.custom_design_url,
+          color: item.color,
+          size: item.size,
+        })) || [],
+        total: parseFloat(order.total),
+        subtotal: parseFloat(order.subtotal || order.total),
+        discount: parseFloat(order.discount || 0),
+        couponCode: order.coupon_code,
+        shippingCost: parseFloat(order.shipping_cost || 0),
+        status: order.status,
+        shippingAddress: order.shipping_address,
+        trackingNumber: order.tracking_number,
+        trackingUrl: order.tracking_url,
+        paymentMethod: order.payment_method,
+        paymentId: order.payment_id,
+        paymentStatus: order.payment_status,
+        prepaidAmount: order.prepaid_amount ? parseFloat(order.prepaid_amount) : undefined,
+        prepaidDate: order.prepaid_date,
+        prepaidReference: order.prepaid_reference,
+        prepaidNotes: order.prepaid_notes,
+        remainingAmount: order.remaining_amount ? parseFloat(order.remaining_amount) : undefined,
+        razorpayOrderId: order.razorpay_order_id,
+        razorpayPaymentId: order.razorpay_payment_id,
+        razorpaySignature: order.razorpay_signature,
+        invoice: order.invoice_id ? { id: order.invoice_id } : undefined,
+        notificationSent: order.notification_sent,
+        date: order.created_at,
+        orderNumber: order.order_number,
+      }));
+      
+      setOrders(mappedOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    } catch (error) {
+      console.error('Failed to load orders from Supabase:', error);
+      // Silently fall back to empty orders - don't show error toast
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadProducts = () => {
     setProducts(storageUtils.getProducts());
   };
 
-  const handleUpdateTracking = (order: Order) => {
+  const handleUpdateTracking = async (order: Order) => {
     if (!trackingNumber) {
       toast.error('Please enter a tracking number');
       return;
     }
 
-    storageUtils.updateOrderTracking(order.id, trackingNumber, trackingUrl);
-    
-    // Send notifications
-    notificationService.sendTrackingUpdate(order.userEmail, order.userMobile, {
-      ...order,
-      trackingNumber,
-      trackingUrl
-    });
+    try {
+      // Update in Supabase
+      await ordersApi.update(order.id, {
+        tracking_number: trackingNumber,
+        tracking_url: trackingUrl || null,
+      });
+      
+      // Send notifications
+      notificationService.sendTrackingUpdate(order.userEmail, order.userMobile, {
+        ...order,
+        trackingNumber,
+        trackingUrl
+      });
 
-    toast.success('Tracking information updated and notifications sent!');
-    setTrackingNumber('');
-    setTrackingUrl('');
-    setSelectedOrder(null);
-    loadOrders();
+      toast.success('Tracking information updated and notifications sent!');
+      setTrackingNumber('');
+      setTrackingUrl('');
+      setSelectedOrder(null);
+      await loadOrders();
+    } catch (error) {
+      console.error('Failed to update tracking:', error);
+      toast.error('Failed to update tracking information');
+    }
   };
 
-  const handleUpdateStatus = (orderId: string, status: string) => {
-    storageUtils.updateOrderStatus(orderId, status);
-    toast.success(`Order status updated to ${status}`);
-    loadOrders();
+  const handleUpdateStatus = async (orderId: string, status: string) => {
+    try {
+      // Update in Supabase
+      await ordersApi.update(orderId, { status });
+      toast.success(`Order status updated to ${status}`);
+      await loadOrders();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      toast.error('Failed to update order status');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -119,23 +178,94 @@ export function OrderManagement() {
     setIsInvoiceEditorOpen(true);
   };
 
-  const handleSaveInvoice = (invoice: Invoice) => {
+  const handleSaveInvoice = async (invoiceData: any) => {
     if (!editingOrderForInvoice) return;
     
-    const orders = storageUtils.getOrders();
-    const orderIndex = orders.findIndex(o => o.id === editingOrderForInvoice.id);
-    if (orderIndex !== -1) {
-      orders[orderIndex].invoice = invoice;
-      storageUtils.saveOrders(orders);
-      loadOrders();
-      toast.success('Invoice saved successfully!');
+    try {
+      // Prepare invoice data for Supabase
+      const invoicePayload = {
+        invoice_number: invoiceData.invoiceNumber,
+        order_id: editingOrderForInvoice.id,
+        order_number: editingOrderForInvoice.orderNumber || editingOrderForInvoice.id.slice(-8).toUpperCase(),
+        date: invoiceData.invoiceDate,
+        due_date: invoiceData.dueDate || null,
+        customer_name: editingOrderForInvoice.userEmail.split('@')[0], // Use email as fallback
+        customer_email: editingOrderForInvoice.userEmail,
+        customer_phone: editingOrderForInvoice.userMobile,
+        customer_address: editingOrderForInvoice.shippingAddress || '',
+        subtotal: invoiceData.subtotal,
+        tax: invoiceData.taxAmount,
+        tax_rate: invoiceData.taxRate,
+        discount: invoiceData.discount || 0,
+        shipping_cost: invoiceData.shippingCharge || 0,
+        total: invoiceData.total,
+        notes: invoiceData.notes || '',
+        terms: invoiceData.termsAndConditions || '',
+        status: 'draft',
+        items: invoiceData.items?.map((item: any) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.rate,
+          total_price: item.amount,
+        })) || []
+      };
+
+      // Create invoice in Supabase
+      await invoicesApi.create(invoicePayload);
+      
+      toast.success('Invoice saved to database successfully!');
+      await loadOrders(); // Reload orders to reflect new invoice
+    } catch (error) {
+      console.error('Failed to save invoice:', error);
+      toast.error('Failed to save invoice to database');
     }
+    
     setIsInvoiceEditorOpen(false);
   };
 
   const handleDownloadInvoice = (invoice: Invoice) => {
     downloadInvoiceAsPDF(invoice);
     toast.success('Downloading invoice...');
+  };
+
+  const handleRecordPrepaidPayment = async (order: Order) => {
+    const amount = parseFloat(prepaidAmount);
+    
+    if (!prepaidAmount || isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid prepaid amount');
+      return;
+    }
+
+    if (amount > order.total) {
+      toast.error('Prepaid amount cannot exceed order total');
+      return;
+    }
+
+    try {
+      // Update in Supabase
+      await ordersApi.update(order.id, {
+        prepaid_amount: amount,
+        prepaid_date: new Date().toISOString(),
+        prepaid_reference: prepaidReference || null,
+        prepaid_notes: prepaidNotes || null,
+        remaining_amount: order.total - amount,
+      });
+      
+      await loadOrders();
+      
+      toast.success(`₹${amount} prepaid recorded successfully!`, {
+        description: `Remaining: ₹${(order.total - amount).toFixed(2)}`
+      });
+      
+      // Reset form
+      setPrepaidOrder(null);
+      setPrepaidAmount('');
+      setPrepaidReference('');
+      setPrepaidNotes('');
+    } catch (error) {
+      console.error('Failed to record prepaid payment:', error);
+      toast.error('Failed to record prepaid payment');
+    }
   };
 
   return (
@@ -484,6 +614,124 @@ export function OrderManagement() {
                                   <Send className="w-4 h-4 mr-2" />
                                   Dispatch & Notify Customer
                                 </Button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+
+                          {/* Prepaid Payment Recording */}
+                          <div className="space-y-3 pt-4 border-t border-white/5">
+                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Prepaid Payment Management</Label>
+                            
+                            {/* Show existing prepaid info if available */}
+                            {order.prepaidAmount && order.prepaidAmount > 0 ? (
+                              <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/20">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <p className="text-xs text-slate-500 mb-1">Prepaid Amount</p>
+                                    <p className="text-lg font-bold text-green-400">₹{order.prepaidAmount.toLocaleString('en-IN')}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-slate-500 mb-1">Remaining Amount</p>
+                                    <p className="text-lg font-bold text-yellow-400">₹{(order.remainingAmount || 0).toLocaleString('en-IN')}</p>
+                                  </div>
+                                  {order.prepaidReference && (
+                                    <div>
+                                      <p className="text-xs text-slate-500 mb-1">Reference</p>
+                                      <p className="text-sm text-slate-300">{order.prepaidReference}</p>
+                                    </div>
+                                  )}
+                                  {order.prepaidDate && (
+                                    <div>
+                                      <p className="text-xs text-slate-500 mb-1">Date</p>
+                                      <p className="text-sm text-slate-300">{new Date(order.prepaidDate).toLocaleDateString()}</p>
+                                    </div>
+                                  )}
+                                  {order.prepaidNotes && (
+                                    <div className="col-span-2">
+                                      <p className="text-xs text-slate-500 mb-1">Notes</p>
+                                      <p className="text-sm text-slate-300">{order.prepaidNotes}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-gold-500/30 text-gold-400 hover:bg-gold-500/10 h-8 text-[10px] font-bold uppercase tracking-widest rounded-lg px-3"
+                                onClick={() => {
+                                  setPrepaidOrder(order);
+                                  setPrepaidAmount(order.total.toString());
+                                }}
+                              >
+                                <DollarSign className="w-3 h-3 mr-2" />
+                                Record Prepaid Payment
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* Prepaid Payment Form */}
+                          <AnimatePresence>
+                            {prepaidOrder?.id === order.id && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="space-y-4 bg-gold-500/5 rounded-2xl p-5 border border-gold-500/20"
+                              >
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-gold-400 uppercase tracking-widest">Amount Received *</Label>
+                                    <Input
+                                      type="number"
+                                      value={prepaidAmount}
+                                      onChange={(e) => setPrepaidAmount(e.target.value)}
+                                      placeholder="Enter amount"
+                                      max={order.total}
+                                      className="bg-[#0f172a]/80 border-gold-500/30 text-white placeholder:text-slate-600 h-10 rounded-lg"
+                                    />
+                                    <p className="text-xs text-slate-500">Max: ₹{order.total.toLocaleString('en-IN')}</p>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-gold-400 uppercase tracking-widest">Transaction Reference</Label>
+                                    <Input
+                                      value={prepaidReference}
+                                      onChange={(e) => setPrepaidReference(e.target.value)}
+                                      placeholder="Transaction ID / UPI Ref"
+                                      className="bg-[#0f172a]/80 border-gold-500/30 text-white placeholder:text-slate-600 h-10 rounded-lg"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs font-bold text-gold-400 uppercase tracking-widest">Notes (Optional)</Label>
+                                  <Input
+                                    value={prepaidNotes}
+                                    onChange={(e) => setPrepaidNotes(e.target.value)}
+                                    placeholder="Payment method, bank name, etc."
+                                    className="bg-[#0f172a]/80 border-gold-500/30 text-white placeholder:text-slate-600 h-10 rounded-lg"
+                                  />
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={() => handleRecordPrepaidPayment(order)}
+                                    className="flex-1 bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-black font-bold rounded-xl h-11"
+                                  >
+                                    <DollarSign className="w-4 h-4 mr-2" />
+                                    Save Prepaid Payment
+                                  </Button>
+                                  <Button
+                                    onClick={() => {
+                                      setPrepaidOrder(null);
+                                      setPrepaidAmount('');
+                                      setPrepaidReference('');
+                                      setPrepaidNotes('');
+                                    }}
+                                    variant="outline"
+                                    className="border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-xl"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
                               </motion.div>
                             )}
                           </AnimatePresence>

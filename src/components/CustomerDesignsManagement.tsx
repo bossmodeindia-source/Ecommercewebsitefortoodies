@@ -1,21 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
-import { Palette, ExternalLink, Trash2, User, Package, Search, Eye, Calendar, Link as LinkIcon, Edit, Save, Layers, Copy, Download } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { User as UserType, CustomDesign, SavedCustomerDesign, Product, Invoice } from '../types';
-import { storageUtils } from '../utils/storage';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
+import { Calendar, Download, Eye, Filter, Palette, Search, Trash2, CheckCircle, XCircle, Clock, Layers, User, ExternalLink, Link as LinkIcon, Edit, Gift, Tag, Maximize2, Save } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
+import { designDB, DesignData } from '../utils/indexedDB';
+import { storageUtils } from '../utils/storage';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { DesignRenderer } from './DesignRenderer';
+import { Textarea } from './ui/textarea';
 
 type DesignItem = {
-  design: CustomDesign | SavedCustomerDesign;
+  design: DesignData;
   user: UserType;
   product?: Product;
   type: '3D' | '2D Studio';
@@ -48,7 +69,7 @@ export function CustomerDesignsManagement() {
   };
 
   const isStudioDesign = (design: any): design is SavedCustomerDesign => {
-    return 'designUploads' in design && 'printingMethod' in design;
+    return ('designLayers' in design || 'designUploads' in design) && 'printingMethod' in design;
   };
 
   const filterDesigns = () => {
@@ -228,7 +249,7 @@ ${invoiceData.customerEmail}
 Product: ${selectedDesign.product?.name || 'Custom Product'}
 Color: ${studioDesign.color} | Size: ${studioDesign.size} | Fabric: ${studioDesign.fabric}
 Printing Method: ${studioDesign.printingMethod}
-Design Elements: ${studioDesign.designUploads.length}
+Design Elements: ${(studioDesign.designLayers || studioDesign.designUploads || []).length}
 
 Subtotal: ₹${invoiceData.subtotal?.toFixed(2)}
 Tax (18%): ₹${invoiceData.totalTax?.toFixed(2)}
@@ -394,11 +415,21 @@ Notes: ${invoiceData.notes}
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center overflow-hidden border border-purple-500/30">
-                            {isStudioDesign(item.design) && item.design.canvasSnapshot ? (
-                              <img
-                                src={item.design.canvasSnapshot}
-                                alt={item.design.name}
-                                className="w-full h-full object-cover"
+                            {isStudioDesign(item.design) && item.design.modelUrl && (item.design.designLayers || item.design.designUploads) ? (
+                              <DesignRenderer
+                                modelUrl={item.design.modelUrl}
+                                layers={item.design.designLayers || item.design.designUploads?.map((u: any) => ({
+                                  id: u.id,
+                                  imageUrl: u.imageUrl,
+                                  x: (u.normalizedX ?? 50) * 6,
+                                  y: (u.normalizedY ?? 50) * 6,
+                                  width: (u.normalizedWidth ?? 200) * 6,
+                                  height: (u.normalizedHeight ?? 200) * 6,
+                                  rotation: u.rotationDegrees || 0,
+                                  printingMethodId: u.printingMethodId
+                                })) || []}
+                                canvasSize={48}
+                                className="rounded-lg"
                               />
                             ) : item.product?.image ? (
                               <ImageWithFallback
@@ -632,6 +663,82 @@ Notes: ${invoiceData.notes}
                       <div className="bg-black/20 p-4 rounded-xl border border-pink-500/20">
                         <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Fabric</p>
                         <p className="text-white font-bold">{selectedDesign.design.fabric}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Gifting & Labels Details */}
+              {isStudioDesign(selectedDesign.design) && (
+                <Card className="glass-card border-[#d4af37]/20 bg-gradient-to-br from-[#d4af37]/5 to-black">
+                  <CardContent className="pt-6">
+                    <p className="text-xs text-[#d4af37] uppercase tracking-widest mb-4 font-black flex items-center gap-2">
+                      <Gift className="w-4 h-4" />
+                      Bespoke Extras & Gifting
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Neck Label */}
+                      <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Tag className="w-3 h-3 text-[#d4af37]" />
+                          <p className="text-[10px] font-black uppercase text-white tracking-widest">Neck Label</p>
+                        </div>
+                        {selectedDesign.design.neckLabel ? (
+                          <div className="space-y-2">
+                            <div>
+                              <p className="text-[9px] text-slate-500 uppercase font-bold">Text</p>
+                              <p className="text-sm font-bold text-white">{selectedDesign.design.neckLabel.text || 'N/A'}</p>
+                            </div>
+                            <div className="flex gap-4">
+                              <div>
+                                <p className="text-[9px] text-slate-500 uppercase font-bold">Color</p>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: selectedDesign.design.neckLabel.color }} />
+                                  <span className="text-[10px] font-mono text-slate-300">{selectedDesign.design.neckLabel.color}</span>
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-[9px] text-slate-500 uppercase font-bold">Size</p>
+                                <p className="text-[10px] font-bold text-white">{selectedDesign.design.neckLabel.size}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-slate-600 italic">No custom label requested</p>
+                        )}
+                      </div>
+
+                      {/* Gifting Protocol */}
+                      <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Gift className="w-3 h-3 text-[#d4af37]" />
+                            <p className="text-[10px] font-black uppercase text-white tracking-widest">Gifting Protocol</p>
+                          </div>
+                          <Badge className={selectedDesign.design.isGifting ? 'bg-[#d4af37]/20 text-[#d4af37]' : 'bg-slate-800 text-slate-500'}>
+                            {selectedDesign.design.isGifting ? 'ACTIVATED' : 'DISABLED'}
+                          </Badge>
+                        </div>
+
+                        {selectedDesign.design.isGifting && (
+                          <div className="space-y-4 pt-2">
+                            <div>
+                              <p className="text-[9px] text-slate-500 uppercase font-bold mb-1">Message Card</p>
+                              <div className="p-3 bg-white/5 rounded-lg border border-white/5">
+                                <p className="text-xs text-slate-300 italic">"{selectedDesign.design.thankYouCard?.text || 'No message provided'}"</p>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[9px] text-slate-500 uppercase font-bold mb-1">Premium Box</p>
+                              <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/5">
+                                <p className="text-[10px] font-bold text-white">{selectedDesign.design.box?.text || 'STANDARD BRANDING'}</p>
+                                <div className="w-4 h-4 rounded shadow-inner" style={{ backgroundColor: selectedDesign.design.box?.color || '#000000' }} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>

@@ -474,17 +474,15 @@ Thanks for choosing Toodies! 🎉`,
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button
+                          <div
                             onClick={() => handleToggleActive(template)}
-                            variant="ghost"
-                            size="sm"
-                            className="hover:bg-cyan-500/10 hover:text-cyan-400"
+                            className="inline-flex items-center justify-center hover:opacity-80 cursor-pointer"
                           >
                             <Switch
                               checked={template.isActive}
                               className="data-[state=checked]:bg-cyan-500"
                             />
-                          </Button>
+                          </div>
                           <Button
                             onClick={() => handleEdit(template)}
                             variant="ghost"

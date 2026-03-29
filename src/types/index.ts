@@ -38,6 +38,14 @@ export interface Product {
   tags?: string[];
   gender?: 'men' | 'women' | 'unisex';
   printingMethods?: string[]; // Available printing methods for the product
+  // Payment options
+  allowPrepaid?: boolean; // Allow full prepaid payment
+  allowPostpaid?: boolean; // Allow COD/postpaid payment
+  partialPaymentPercentage?: number; // Percentage required for partial payment (e.g., 30)
+  codExtraCharge?: number; // Extra charge for COD (e.g., 50)
+  // Custom design payment settings
+  customDesignAllowPostpaid?: boolean; // Allow postpaid for custom designs
+  customDesignPartialPaymentPercentage?: number; // Partial payment % for custom designs
 }
 
 // Order Types
@@ -78,6 +86,12 @@ export interface Order {
   paymentId?: string;
   trackingNumber?: string;
   invoiceId?: string;
+  // Prepaid payment tracking
+  prepaidAmount?: number; // Amount received as prepaid
+  prepaidDate?: string; // Date when prepaid received
+  prepaidReference?: string; // Transaction reference number
+  prepaidNotes?: string; // Additional notes about prepaid payment
+  remainingAmount?: number; // Remaining amount to be collected
 }
 
 // Custom Design Types
@@ -200,6 +214,11 @@ export interface BusinessInfo {
   gstin: string;
   website?: string;
   supportHours?: string;
+  heroImage?: string; // Admin-uploaded hero/banner image for landing page
+  // Gifting Templates
+  neckLabelTemplate?: string;
+  thankYouCardTemplate?: string;
+  boxTemplate?: string;
   socialMedia?: {
     facebook?: string;
     instagram?: string;
@@ -250,6 +269,8 @@ export interface PrintingMethod {
   minimumCharge?: number;
   
   isActive: boolean;
+  enabled?: boolean; // Admin can enable/disable this method
+  showPrice?: boolean; // Admin can show/hide price to customers
   createdAt?: string;
   printArea?: {
     x: number; // X position as percentage (0-100)
@@ -350,6 +371,36 @@ export interface SavedCustomerDesign {
   updatedAt?: string;
   status?: 'saved' | 'ordered';
   orderId?: string;
+  paymentStatus?: 'unpaid' | 'paid';
+  // Gifting fields
+  isGifting?: boolean;
+  neckLabel?: {
+    text: string;
+    color: string;
+    size: string;
+  };
+  thankYouCard?: {
+    text?: string;
+    customImage?: string;
+  };
+  box?: {
+    text?: string;
+    color?: string;
+  };
+  // Admin approval fields
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  approvalDate?: string;
+  approvalNotes?: string; // Admin's reason for approval/rejection
+  reviewedBy?: string; // Admin ID who reviewed
+  // Admin price override
+  adminSetPrice?: number; // Admin-defined price (overrides calculated cost)
+  showPrintingCost?: boolean; // Show printing method cost breakdown to customer
+  priceBreakdown?: {
+    baseProductPrice?: number;
+    printingCost?: number;
+    additionalCharges?: number;
+    discount?: number;
+  };
 }
 
 // Invoice Types

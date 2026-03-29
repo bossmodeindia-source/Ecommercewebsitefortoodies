@@ -205,24 +205,34 @@ export function SavedDesigns({ user, products, onUpdate, onAddToCart, onEditDesi
                             </Button>
                             <Button
                               size="sm"
-                              className="bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white border-0 rounded-xl shadow-lg"
+                              disabled={design.approvalStatus !== 'approved'}
+                              className={design.approvalStatus === 'approved' 
+                                ? "bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white border-0 rounded-xl shadow-lg"
+                                : "bg-slate-700/50 text-slate-500 border-0 rounded-xl cursor-not-allowed"}
                               onClick={() => {
-                                if (product) {
-                                  // Calculate total price
-                                  const basePrice = product.price || 0;
-                                  const printingCost = design.printingCost || 0;
-                                  const totalPrice = basePrice + printingCost;
-                                  
-                                  // Add custom design to cart with screenshot
-                                  onAddToCart(design.productId, design.canvasSnapshot || design.thumbnailUrl || '');
-                                  toast.success(`Added to cart! Total: ₹${totalPrice}`);
+                                if (design.approvalStatus === 'approved') {
+                                  if (product) {
+                                    // Calculate total price: base product price + printing cost
+                                    const basePrice = product.price || 0;
+                                    const printingCost = design.printingCost || 0;
+                                    const totalPrice = basePrice + printingCost;
+                                    
+                                    // Add custom design to cart with screenshot
+                                    onAddToCart(design.productId, design.canvasSnapshot || design.thumbnailUrl || '');
+                                    toast.success(`Added to cart! Total: ₹${totalPrice.toFixed(2)}`);
+                                  } else {
+                                    toast.error('Product not found');
+                                  }
+                                } else if (design.approvalStatus === 'rejected') {
+                                  toast.error(design.approvalNotes || 'This design was rejected. Please check review notes and create a new design.');
                                 } else {
-                                  toast.error('Product not found');
+                                  toast.info('This design is pending admin approval before purchase.');
                                 }
                               }}
                             >
                               <ShoppingCart className="w-3 h-3 mr-2" />
-                              Buy Now
+                              {design.approvalStatus === 'approved' ? 'Buy Now' : 
+                               design.approvalStatus === 'rejected' ? 'Rejected' : 'Pending'}
                             </Button>
                           </div>
                         </>

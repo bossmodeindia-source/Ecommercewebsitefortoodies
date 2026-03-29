@@ -3,11 +3,12 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ArrowLeft, Home, Palette } from 'lucide-react';
 import { motion } from 'motion/react';
-import { TwoDDesigner } from './TwoDDesigner';
+import { Advanced2DDesigner } from './Advanced2DDesigner';
 import { storageUtils } from '../utils/storage';
 import { Product, User, ThreeDModelConfig } from '../types';
 import { toast } from 'sonner@2.0.3';
 import { Badge } from './ui/badge';
+import { designsApi } from '../utils/supabaseApi';
 
 interface TwoDStudioPageProps {
   onBack: () => void;
@@ -150,62 +151,29 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-black text-white selection:bg-[#d4af37]/30">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-40 bg-black/90 backdrop-blur-xl border-b border-[#d4af37]/10">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Button
               onClick={onBack}
               variant="ghost"
-              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              className="text-slate-300 hover:text-[#d4af37] hover:bg-[#d4af37]/5 nav-link"
             >
               <ArrowLeft className="w-5 h-5 mr-2" />
               Back to Dashboard
             </Button>
-            <Button
-              onClick={onBack}
-              variant="outline"
-              className="border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
-              <Home className="w-4 h-4 mr-2" />
-              Dashboard
-            </Button>
-            <Button
-              onClick={() => {
-                console.log('=== DEBUG: ALL CONFIGS ===');
-                const allConfigs = storageUtils.get3DModelConfigs();
-                console.log('Total configs:', allConfigs.length);
-                allConfigs.forEach((config, i) => {
-                  console.log(`\nConfig ${i + 1}:`, {
-                    id: config.id,
-                    productId: config.productId,
-                    productName: config.productName,
-                    mockupImageUrl: config.mockupImageUrl ? config.mockupImageUrl.substring(0, 50) + '...' : 'NONE',
-                    modelUrl: config.modelUrl ? config.modelUrl.substring(0, 50) + '...' : 'NONE',
-                    hasImage: !!(config.mockupImageUrl || config.modelUrl)
-                  });
-                });
-                
-                console.log('\n=== DEBUG: ALL PRODUCTS ===');
-                const allProducts = storageUtils.getProducts();
-                console.log('Total products:', allProducts.length);
-                allProducts.forEach((product, i) => {
-                  const hasConfig = storageUtils.get3DModelConfigByProductId(product.id);
-                  console.log(`\nProduct ${i + 1}:`, {
-                    id: product.id,
-                    name: product.name,
-                    category: product.category,
-                    hasConfig: !!hasConfig
-                  });
-                });
-                
-                toast.success('Check browser console for debug info');
-              }}
-              className="bg-cyan-500 text-white hover:bg-cyan-600"
-            >
-              🔍 Debug Configs
-            </Button>
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={onBack}
+                variant="outline"
+                className="border-[#d4af37]/30 text-[#d4af37] hover:bg-[#d4af37] hover:text-black glow-button rounded-full"
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -213,18 +181,18 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
       {/* Main Content */}
       <div className="container mx-auto px-6 py-12">
         {!isDesignerOpen ? (
-          <div className="space-y-8">
+          <div className="space-y-12">
             {/* Title Section */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center space-y-3"
+              className="text-center space-y-4"
             >
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
-                Free Online 2D Mockup Studio
+              <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-br from-white via-white to-[#d4af37] bg-clip-text text-transparent glow-text">
+                2D Mockup Studio
               </h1>
-              <p className="text-gray-600 text-lg">
-                Choose a Mockup, Upload Your Design, and Export - <span className="font-semibold">no complex software or file downloads required</span>
+              <p className="text-slate-400 text-lg max-w-2xl mx-auto font-light leading-relaxed">
+                Premium customization experience. Select a mockup, visualize your vision, and create your statement.
               </p>
             </motion.div>
 
@@ -235,15 +203,15 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
               transition={{ delay: 0.1 }}
               className="flex justify-center"
             >
-              <div className="inline-flex items-center gap-3 bg-gray-100 p-2 rounded-lg">
+              <div className="inline-flex items-center gap-3 bg-[#111] p-2 rounded-2xl border border-[#d4af37]/10">
                 {categories.map((category) => (
                   <Button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`px-6 py-2 rounded-md font-medium transition-all ${
+                    className={`px-8 py-3 rounded-xl font-bold tracking-widest text-[10px] uppercase transition-all ${
                       selectedCategory === category
-                        ? 'bg-black text-white hover:bg-gray-800'
-                        : 'bg-transparent text-gray-700 hover:bg-gray-200'
+                        ? 'bg-[#d4af37] text-black shadow-lg shadow-[#d4af37]/20'
+                        : 'bg-transparent text-slate-400 hover:text-white'
                     }`}
                   >
                     {category}
@@ -252,41 +220,17 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
               </div>
             </motion.div>
 
-            {/* Brand/Subcategory Filter Badges */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex justify-center flex-wrap gap-3"
-            >
-              {categories.map((category) => (
-                <Badge
-                  key={category}
-                  variant="outline"
-                  className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 transition-colors border-gray-300 text-gray-700"
-                  onClick={() => setSelectedCategory(category)}
-                >
-                  {category} ({getCategoryCount(category)})
-                </Badge>
-              ))}
-            </motion.div>
-
             {/* Products Grid */}
             {filteredProducts.length > 0 ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mt-12"
               >
                 {filteredProducts.map((product, index) => {
                   const config = storageUtils.get3DModelConfigByProductId(product.id);
                   const mockupImage = config?.mockupImageUrl || config?.modelUrl;
-
-                  // Debug logging
-                  console.log(`Product: ${product.name} (ID: ${product.id})`);
-                  console.log('Config:', config);
-                  console.log('Mockup Image URL:', mockupImage);
 
                   return (
                     <motion.div
@@ -294,39 +238,28 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="group cursor-pointer"
+                      className="group"
                       onClick={() => handleProductSelect(product)}
                     >
-                      <Card className="overflow-hidden border-2 border-gray-200 hover:border-gray-400 transition-all hover:shadow-xl bg-white">
-                        <div className="aspect-[3/4] relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                      <Card className="overflow-hidden border border-[#d4af37]/10 hover:border-[#d4af37]/50 transition-all duration-500 hover:shadow-[0_10px_40px_rgba(212,175,55,0.15)] bg-[#0a0a0a] rounded-[30px]">
+                        <div className="aspect-[3/4] relative overflow-hidden bg-[#111]">
+                          <div className="absolute inset-0 bg-black/40 z-10" />
                           {mockupImage ? (
                             <img
                               src={mockupImage}
                               alt={product.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                          ) : product.images && product.images.length > 0 ? (
-                            <img
-                              src={product.images[0]}
-                              alt={product.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                          ) : product.image ? (
-                            <img
-                              src={product.image}
-                              alt={product.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700"
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <Palette className="w-20 h-20 text-gray-400" />
+                              <Palette className="w-20 h-20 text-[#d4af37]/20" />
                             </div>
                           )}
                           
                           {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <div className="text-center space-y-3">
-                              <Button className="bg-white text-black hover:bg-gray-100 font-semibold px-8 py-6 text-lg">
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center z-20">
+                            <div className="text-center space-y-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                              <Button className="glow-button font-bold px-10 py-7 text-lg rounded-2xl">
                                 <Palette className="w-5 h-5 mr-2" />
                                 Start Designing
                               </Button>
@@ -335,19 +268,16 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
                         </div>
                         
                         {/* Product Info */}
-                        <CardContent className="p-4 bg-white">
-                          <div className="space-y-1">
-                            <h3 className="font-bold text-gray-900 text-lg line-clamp-1">
+                        <CardContent className="p-6 bg-[#0a0a0a] relative z-20">
+                          <div className="space-y-3">
+                            <h3 className="font-bold text-white text-xl tracking-wide group-hover:text-[#d4af37] transition-colors">
                               {product.name}
                             </h3>
-                            <p className="text-gray-600 text-sm line-clamp-1">
-                              {product.description}
-                            </p>
-                            <div className="flex items-center justify-between pt-2">
-                              <span className="text-black font-bold text-xl">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[#d4af37] font-bold text-2xl">
                                 ₹{Math.min(...product.variations.map(v => v.price))}
                               </span>
-                              <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">
+                              <Badge className="bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30 font-bold tracking-widest text-[10px] uppercase px-3 py-1 rounded-full">
                                 {product.category}
                               </Badge>
                             </div>
@@ -362,27 +292,22 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-16"
+                className="text-center py-20"
               >
-                <Card className="max-w-md mx-auto border-2 border-gray-200">
-                  <CardContent className="pt-12 pb-12">
-                    <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-6">
-                      <Palette className="w-10 h-10 text-gray-400" />
-                    </div>
-                    <h3 className="text-gray-900 text-2xl font-bold mb-3">No Models Available</h3>
-                    <p className="text-gray-600 mb-6">
-                      {selectedCategory === 'All' 
-                        ? 'There are no 2D models configured yet. Please configure them in the Admin Panel.'
-                        : `No 2D models available in the "${selectedCategory}" category. Try selecting a different category.`
-                      }
-                    </p>
-                <Button
-                  onClick={resetFilters}
-                  className="bg-black text-white hover:bg-gray-800"
-                >
-                  View Models
-                </Button>
-                  </CardContent>
+                <Card className="max-w-md mx-auto border border-[#d4af37]/10 bg-[#0a0a0a] rounded-[40px] p-12">
+                  <div className="w-24 h-24 rounded-full bg-[#d4af37]/5 flex items-center justify-center mx-auto mb-8 border border-[#d4af37]/10">
+                    <Palette className="w-10 h-10 text-[#d4af37] opacity-40" />
+                  </div>
+                  <h3 className="text-white text-3xl font-bold mb-4 tracking-tight">No Models Found</h3>
+                  <p className="text-slate-500 mb-8 font-light leading-relaxed">
+                    We're currently updating our catalog with premium custom pieces. Please check back soon or try another category.
+                  </p>
+                  <Button
+                    onClick={resetFilters}
+                    className="glow-button w-full py-7 rounded-2xl font-bold text-lg"
+                  >
+                    View All Collection
+                  </Button>
                 </Card>
               </motion.div>
             )}
@@ -392,10 +317,11 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
 
       {/* 2D Designer Modal */}
       {isDesignerOpen && selectedProduct && modelConfig && (
-        <TwoDDesigner
+        <Advanced2DDesigner
           isOpen={isDesignerOpen}
           modelConfig={modelConfig}
           productName={selectedProduct.name}
+          productId={selectedProduct.id}
           onClose={() => {
             setIsDesignerOpen(false);
             setSelectedProduct(null);
@@ -413,7 +339,6 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
               onUserUpdate(updatedUser);
             }
           }}
-          existingDesignId={undefined}
         />
       )}
     </div>

@@ -4,13 +4,14 @@ import { Input } from './ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { LogIn, UserPlus, Mail, Phone, Lock, User as UserIcon, KeyRound, ArrowLeft, FileText, CheckCircle } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Phone, Lock, User as UserIcon, KeyRound, ArrowLeft, FileText, CheckCircle, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { storageUtils } from '../utils/storage';
 import { toast } from 'sonner@2.0.3';
 import { User } from '../types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Checkbox } from './ui/checkbox';
+import tigerLogo from 'figma:asset/404faa741eb4394d917a24330c1566de438eea2b.png';
 
 interface CustomerAuthProps {
   onLogin: (user: User) => void;
@@ -35,16 +36,15 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
   const [resetUserId, setResetUserId] = useState('');
   const [showTermsDialog, setShowTermsDialog] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [hasReadTerms, setHasReadTerms] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const user = storageUtils.loginUser(loginEmail, loginPassword);
     if (user) {
-      toast.success('Login successful!');
+      toast.success('Access Granted. Welcome back to the Toodies experience.');
       onLogin(user);
     } else {
-      toast.error('Invalid credentials');
+      toast.error('Authentication failed. Please verify your credentials.');
     }
   };
 
@@ -52,24 +52,24 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
     e.preventDefault();
     
     if (!signupEmail || !signupMobile || !signupPassword || !signupName) {
-      toast.error('Please fill all fields');
+      toast.error('Please complete all fields to integrate with our platform.');
       return;
     }
 
     if (!termsAccepted) {
-      toast.error('Please accept the Terms and Conditions to continue');
+      toast.error('Acceptance of Terms is mandatory for membership.');
       setShowTermsDialog(true);
       return;
     }
 
     const users = storageUtils.getUsers();
     if (users.some(u => u.email === signupEmail || u.mobile === signupMobile)) {
-      toast.error('Email or mobile already registered');
+      toast.error('This identity is already associated with an account.');
       return;
     }
 
     const user = storageUtils.registerUser(signupEmail, signupMobile, signupPassword, signupName);
-    toast.success('Account created successfully!');
+    toast.success('Membership activated. Welcome to the world of Toodies.');
     onLogin(user);
   };
 
@@ -81,9 +81,9 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
       setGeneratedOtp(otp);
       setResetUserId(user.id);
       setOtpSent(true);
-      toast.success('OTP sent to your mobile number');
+      toast.success('Security code dispatched to your registered mobile.');
     } else {
-      toast.error('Mobile number not registered');
+      toast.error('This mobile number is not in our records.');
     }
   };
 
@@ -91,206 +91,207 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
     e.preventDefault();
     
     if (!resetOtp || !newPassword || !confirmPassword) {
-      toast.error('Please fill all fields');
+      toast.error('Please fulfill all security requirements.');
       return;
     }
 
     if (resetOtp !== generatedOtp) {
-      toast.error('Invalid OTP');
+      toast.error('Invalid security code.');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error('Password confirmation mismatch.');
       return;
     }
 
     const user = storageUtils.getUserById(resetUserId);
     if (user) {
       storageUtils.updateUserPassword(user.id, newPassword);
-      toast.success('Password reset successfully!');
+      toast.success('Security protocols updated. Password reset successful.');
       setShowForgotPassword(false);
     } else {
-      toast.error('User not found');
+      toast.error('Account identity could not be verified.');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0e1a] relative overflow-hidden p-4">
+    <div className="min-h-screen flex items-center justify-center bg-black relative overflow-hidden p-4 selection:bg-[#d4af37]/30">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-cyan-500/20 rounded-full blur-3xl animate-pulse-glow" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-teal-500/20 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#d4af37]/5 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-[#c9a227]/5 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.8 }}
         className="w-full max-w-md relative z-10"
       >
-        <Card className="glass-card border-2 border-cyan-500/30">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl text-cyan-100 glow-text">Welcome to Toodies</CardTitle>
-            <CardDescription className="text-slate-300 text-base mt-2">
+        <Card className="glass-card border-[#d4af37]/20 rounded-[32px] overflow-hidden shadow-2xl luxury-glow">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto w-24 h-24 rounded-2xl bg-[#d4af37]/10 flex items-center justify-center mb-4 border border-[#d4af37]/20">
+              <img src={tigerLogo} alt="Toodies" className="w-20 h-20 object-contain" />
+            </div>
+            <CardTitle className="text-3xl font-black text-white tracking-tight uppercase">Welcome to Toodies</CardTitle>
+            <CardDescription className="text-slate-500 font-light text-sm mt-2 uppercase tracking-[2px]">
               Login or create an account to start shopping
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-[#0f172a]/50 border border-cyan-500/20">
+              <TabsList className="grid w-full grid-cols-2 bg-white/5 border border-white/10 p-1 rounded-2xl mb-8">
                 <TabsTrigger 
                   value="login"
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white text-slate-300"
+                  className="rounded-xl data-[state=active]:bg-[#d4af37] data-[state=active]:text-black text-slate-400 font-bold uppercase text-[10px] tracking-widest transition-all"
                 >
-                  <LogIn className="w-4 h-4 mr-2" />
+                  <LogIn className="w-3.5 h-3.5 mr-2" />
                   Login
                 </TabsTrigger>
                 <TabsTrigger 
                   value="signup"
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white text-slate-300"
+                  className="rounded-xl data-[state=active]:bg-[#d4af37] data-[state=active]:text-black text-slate-400 font-bold uppercase text-[10px] tracking-widest transition-all"
                 >
-                  <UserPlus className="w-4 h-4 mr-2" />
+                  <UserPlus className="w-3.5 h-3.5 mr-2" />
                   Sign Up
                 </TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-6 pt-6">
+                <form onSubmit={handleLogin} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="login-email" className="text-cyan-100">Email or Mobile Number</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
+                    <Label htmlFor="login-email" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Email or Mobile Number</Label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#d4af37] transition-colors" />
                       <Input
                         id="login-email"
                         type="text"
                         placeholder="email@example.com or mobile"
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
-                        className="pl-10 bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/50"
+                        className="pl-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-[#d4af37]/50 h-14 rounded-2xl transition-all"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password" className="text-cyan-100">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
+                    <Label htmlFor="login-password" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Password</Label>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#d4af37] transition-colors" />
                       <Input
                         id="login-password"
                         type="password"
                         placeholder="Enter your password"
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
-                        className="pl-10 bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/50"
+                        className="pl-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-[#d4af37]/50 h-14 rounded-2xl transition-all"
                       />
                     </div>
                   </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button border-0 py-6 text-lg rounded-xl"
-                  >
-                    <LogIn className="w-5 h-5 mr-2" />
-                    Login
-                  </Button>
-                  <Button 
-                    type="button" 
-                    className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button border-0 py-6 text-lg rounded-xl"
-                    onClick={() => setShowForgotPassword(true)}
-                  >
-                    <KeyRound className="w-5 h-5 mr-2" />
-                    Forgot Password
-                  </Button>
+                  
+                  <div className="space-y-3 pt-2">
+                    <Button 
+                      type="submit" 
+                      className="w-full h-14 bg-[#d4af37] hover:bg-[#c9a227] text-black font-black text-sm uppercase tracking-[3px] rounded-2xl border-0 shadow-lg shadow-[#d4af37]/20 active:scale-95 transition-all"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      Login
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      className="w-full h-14 border-[#d4af37]/30 text-[#d4af37] hover:bg-[#d4af37]/10 font-bold text-xs uppercase tracking-[2px] rounded-2xl transition-all"
+                      onClick={() => setShowForgotPassword(true)}
+                    >
+                      <KeyRound className="w-4 h-4 mr-2" />
+                      Forgot Password
+                    </Button>
+                  </div>
                 </form>
               </TabsContent>
               
               <TabsContent value="signup">
-                <form onSubmit={handleSignup} className="space-y-6 pt-6">
+                <form onSubmit={handleSignup} className="space-y-5">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email" className="text-cyan-100">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
+                    <Label htmlFor="signup-email" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Email</Label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#d4af37] transition-colors" />
                       <Input
                         id="signup-email"
                         type="email"
                         placeholder="email@example.com"
                         value={signupEmail}
                         onChange={(e) => setSignupEmail(e.target.value)}
-                        className="pl-10 bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/50"
+                        className="pl-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-[#d4af37]/50 h-12 rounded-2xl transition-all"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-mobile" className="text-cyan-100">Mobile Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
+                    <Label htmlFor="signup-mobile" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Mobile Number</Label>
+                    <div className="relative group">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#d4af37] transition-colors" />
                       <Input
                         id="signup-mobile"
                         type="tel"
-                        placeholder="+1234567890"
+                        placeholder="+91 00000 00000"
                         value={signupMobile}
                         onChange={(e) => setSignupMobile(e.target.value)}
-                        className="pl-10 bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/50"
+                        className="pl-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-[#d4af37]/50 h-12 rounded-2xl transition-all"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password" className="text-cyan-100">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        placeholder="Create a password"
-                        value={signupPassword}
-                        onChange={(e) => setSignupPassword(e.target.value)}
-                        className="pl-10 bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/50"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name" className="text-cyan-100">Full Name</Label>
-                    <div className="relative">
-                      <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
+                    <Label htmlFor="signup-name" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Full Name</Label>
+                    <div className="relative group">
+                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#d4af37] transition-colors" />
                       <Input
                         id="signup-name"
                         type="text"
                         placeholder="Enter your full name"
                         value={signupName}
                         onChange={(e) => setSignupName(e.target.value)}
-                        className="pl-10 bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/50"
+                        className="pl-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-[#d4af37]/50 h-12 rounded-2xl transition-all"
                       />
                     </div>
                   </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button border-0 py-6 text-lg rounded-xl"
-                  >
-                    <UserPlus className="w-5 h-5 mr-2" />
-                    Create Account
-                  </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Password</Label>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#d4af37] transition-colors" />
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="Create a password"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        className="pl-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-[#d4af37]/50 h-12 rounded-2xl transition-all"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2">
+                    <Button 
+                      type="submit" 
+                      className="w-full h-14 bg-[#d4af37] hover:bg-[#c9a227] text-black font-black text-sm uppercase tracking-[3px] rounded-2xl border-0 shadow-lg shadow-[#d4af37]/20 transition-all"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Create Account
+                    </Button>
+                  </div>
                 </form>
               </TabsContent>
             </Tabs>
 
-            {/* Privacy and Terms Links */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-slate-400">
+            <div className="mt-8 text-center px-4">
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider leading-relaxed">
                 By signing up, you agree to our{' '}
-                {onTermsClick ? (
-                  <button onClick={onTermsClick} className="text-cyan-400 hover:text-cyan-300 underline">
-                    Terms and Conditions
-                  </button>
-                ) : (
-                  <span className="text-cyan-400">Terms and Conditions</span>
-                )}
+                <button onClick={onTermsClick} className="text-[#d4af37] hover:text-white transition-colors underline decoration-[#d4af37]/30">
+                  Terms and Conditions
+                </button>
                 {' '}and{' '}
-                {onPrivacyClick ? (
-                  <button onClick={onPrivacyClick} className="text-cyan-400 hover:text-cyan-300 underline">
-                    Privacy Policy
-                  </button>
-                ) : (
-                  <span className="text-cyan-400">Privacy Policy</span>
-                )}
+                <button onClick={onPrivacyClick} className="text-[#d4af37] hover:text-white transition-colors underline decoration-[#d4af37]/30">
+                  Privacy Policy
+                </button>
               </p>
             </div>
           </CardContent>
@@ -299,242 +300,206 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
 
       {/* Forgot Password Dialog */}
       <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
-        <DialogContent className="glass-card border-2 border-cyan-500/30">
+        <DialogContent className="glass-card border-[#d4af37]/30 bg-black rounded-[32px] max-w-sm">
           <DialogHeader className="text-center">
-            <DialogTitle className="text-3xl text-cyan-100 glow-text">Forgot Password</DialogTitle>
-            <DialogDescription className="text-slate-300 text-base mt-2">
-              Enter your mobile number to reset your password
+            <div className="mx-auto w-12 h-12 rounded-xl bg-[#d4af37]/10 flex items-center justify-center mb-4 border border-[#d4af37]/20">
+              <KeyRound className="w-6 h-6 text-[#d4af37]" />
+            </div>
+            <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight">Security Reset</DialogTitle>
+            <DialogDescription className="text-slate-500 font-light text-sm uppercase tracking-widest">
+              Enter your mobile number to reset access
             </DialogDescription>
           </DialogHeader>
-          <CardContent>
-            <form onSubmit={handleForgotPassword} className="space-y-6 pt-6">
+          <div className="pt-4">
+            <form onSubmit={handleForgotPassword} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="reset-mobile" className="text-cyan-100">Mobile Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
+                <Label htmlFor="reset-mobile" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Mobile Number</Label>
+                <div className="relative group">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <Input
                     id="reset-mobile"
                     type="tel"
-                    placeholder="+1234567890"
+                    placeholder="+91 00000 00000"
                     value={resetMobile}
                     onChange={(e) => setResetMobile(e.target.value)}
-                    className="pl-10 bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/50"
+                    className="pl-12 bg-white/5 border-white/10 text-white h-12 rounded-xl focus:border-[#d4af37]/50 transition-all"
                   />
                 </div>
               </div>
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button border-0 py-6 text-lg rounded-xl"
+                className="w-full h-12 bg-[#d4af37] text-black font-black text-xs uppercase tracking-[2px] rounded-xl border-0 shadow-lg shadow-[#d4af37]/10"
               >
-                <KeyRound className="w-5 h-5 mr-2" />
-                Send OTP
+                Dispatch Code
               </Button>
             </form>
-          </CardContent>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Reset Password Dialog */}
       <Dialog open={otpSent} onOpenChange={setOtpSent}>
-        <DialogContent className="glass-card border-2 border-cyan-500/30">
+        <DialogContent className="glass-card border-[#d4af37]/30 bg-black rounded-[32px] max-w-sm">
           <DialogHeader className="text-center">
-            <DialogTitle className="text-3xl text-cyan-100 glow-text">Reset Password</DialogTitle>
-            <DialogDescription className="text-slate-300 text-base mt-2">
-              Enter the OTP sent to your mobile number
+            <div className="mx-auto w-12 h-12 rounded-xl bg-[#d4af37]/10 flex items-center justify-center mb-4 border border-[#d4af37]/20">
+              <ShieldCheck className="w-6 h-6 text-[#d4af37]" />
+            </div>
+            <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight">Identity Verified</DialogTitle>
+            <DialogDescription className="text-slate-500 font-light text-sm uppercase tracking-widest">
+              Establish your new security credentials
             </DialogDescription>
           </DialogHeader>
-          <CardContent>
-            <form onSubmit={handleResetPassword} className="space-y-6 pt-6">
+          <div className="pt-4">
+            <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="reset-otp" className="text-cyan-100">OTP</Label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
-                  <Input
-                    id="reset-otp"
-                    type="text"
-                    placeholder="Enter OTP"
-                    value={resetOtp}
-                    onChange={(e) => setResetOtp(e.target.value)}
-                    className="pl-10 bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/50"
-                  />
-                </div>
+                <Label htmlFor="reset-otp" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Security Code</Label>
+                <Input
+                  id="reset-otp"
+                  type="text"
+                  placeholder="0000"
+                  value={resetOtp}
+                  onChange={(e) => setResetOtp(e.target.value)}
+                  className="bg-white/5 border-white/10 text-white h-12 rounded-xl text-center text-xl font-black tracking-[8px]"
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-password" className="text-cyan-100">New Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
-                  <Input
-                    id="new-password"
-                    type="password"
-                    placeholder="Enter new password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="pl-10 bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/50"
-                  />
-                </div>
+                <Label htmlFor="new-password" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="bg-white/5 border-white/10 text-white h-12 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirm-password" className="text-cyan-100">Confirm Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-500" />
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-10 bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/50"
-                  />
-                </div>
+                <Label htmlFor="confirm-password" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Confirm Identity</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="bg-white/5 border-white/10 text-white h-12 rounded-xl"
+                />
               </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button border-0 py-6 text-lg rounded-xl"
-              >
-                <KeyRound className="w-5 h-5 mr-2" />
-                Reset Password
-              </Button>
-              <Button 
-                type="button" 
-                className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button border-0 py-6 text-lg rounded-xl"
-                onClick={() => setOtpSent(false)}
-              >
-                <ArrowLeft className="w-5 h-5 mr-2" />
-                Back
-              </Button>
+              <div className="pt-4 space-y-3">
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 bg-[#d4af37] text-black font-black text-xs uppercase tracking-[2px] rounded-xl border-0"
+                >
+                  Finalize Access
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="ghost"
+                  className="w-full text-slate-500 font-bold text-[10px] uppercase tracking-widest"
+                  onClick={() => setOtpSent(false)}
+                >
+                  <ArrowLeft className="w-3 h-3 mr-2" />
+                  Back
+                </Button>
+              </div>
             </form>
-          </CardContent>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Terms and Conditions Dialog */}
       <Dialog open={showTermsDialog} onOpenChange={setShowTermsDialog}>
-        <DialogContent className="glass-card border-2 border-cyan-500/30 max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-2xl text-cyan-100 glow-text flex items-center gap-2">
-              <FileText className="w-6 h-6 text-cyan-400" />
-              Terms and Conditions
+        <DialogContent className="glass-card border-[#d4af37]/30 bg-black max-w-2xl max-h-[80vh] overflow-hidden flex flex-col rounded-[32px]">
+          <DialogHeader className="pb-4 border-b border-white/5">
+            <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+              <FileText className="w-6 h-6 text-[#d4af37]" />
+              Membership Protocol
             </DialogTitle>
-            <DialogDescription className="text-slate-300">
-              Please read and accept our terms to create your account
+            <DialogDescription className="text-slate-500 font-light text-sm uppercase tracking-widest">
+              Please review our bespoke service conditions
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex-1 overflow-y-auto pr-4 space-y-4 text-slate-300 text-sm">
+          <div className="flex-1 overflow-y-auto pr-4 space-y-6 text-slate-400 text-sm font-light py-6 custom-scrollbar">
             <section>
-              <h3 className="text-lg font-semibold text-cyan-200 mb-2">1. Acceptance of Terms</h3>
-              <p>
-                By creating an account, placing an order, or using any of our services, you acknowledge that you have read and understood these Terms and Conditions and agree to comply with all applicable laws and regulations.
+              <h3 className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] mb-3">1. Executive Summary</h3>
+              <p className="leading-relaxed">
+                By entering the Toodies ecosystem, you acknowledge that our high-end custom apparel services are provided under premium conditions designed for the discerning individual.
               </p>
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold text-cyan-200 mb-2">2. Account Registration</h3>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>You must provide accurate, current, and complete information</li>
-                <li>You are responsible for maintaining the confidentiality of your password</li>
-                <li>You must notify us immediately of any unauthorized access</li>
-                <li>You must be at least 18 years old or have parental/guardian consent</li>
+              <h3 className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] mb-3">2. Identity Management</h3>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#d4af37] mt-1.5 flex-shrink-0" />
+                  <span>You warrant that all profile data is authentic and precisely maintained.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#d4af37] mt-1.5 flex-shrink-0" />
+                  <span>Account security is the sole responsibility of the member.</span>
+                </li>
               </ul>
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold text-cyan-200 mb-2">3. Custom Designs</h3>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>You are responsible for ensuring your designs do not infringe on copyrights or trademarks</li>
-                <li>We reserve the right to refuse designs that are offensive, illegal, or inappropriate</li>
-                <li>Custom orders cannot be cancelled once production has started</li>
-                <li>You grant us permission to use your designs for order fulfillment</li>
-              </ul>
-            </section>
-
-            <section>
-              <h3 className="text-lg font-semibold text-cyan-200 mb-2">4. Pricing and Payment</h3>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>All prices are in Indian Rupees (₹) and include applicable taxes</li>
-                <li>We accept Credit/Debit Cards, UPI, Net Banking, Digital Wallets, COD, and EMI</li>
-                <li>Payment must be received in full before order processing</li>
-                <li>Refunds will be processed to the original payment method</li>
-              </ul>
-            </section>
-
-            <section>
-              <h3 className="text-lg font-semibold text-cyan-200 mb-2">5. Shipping and Delivery</h3>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>Custom orders take 7-10 business days for production</li>
-                <li>Delivery time varies based on location (3-7 business days after production)</li>
-                <li>You will receive tracking information once your order ships</li>
-              </ul>
-            </section>
-
-            <section>
-              <h3 className="text-lg font-semibold text-cyan-200 mb-2">6. Returns and Refunds</h3>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>Standard products: Returns accepted within 7 days of delivery</li>
-                <li>Custom designed products: Returns only for manufacturing defects</li>
-                <li>Products must be unused, unwashed, and in original condition</li>
-              </ul>
-            </section>
-
-            <section>
-              <h3 className="text-lg font-semibold text-cyan-200 mb-2">7. Intellectual Property</h3>
-              <p>
-                You retain ownership of custom designs you create. You warrant that your designs do not infringe on third-party rights and you are responsible for obtaining necessary licenses or permissions.
+              <h3 className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] mb-3">3. Bespoke Intellectual Property</h3>
+              <p className="leading-relaxed mb-3">
+                Creativity is the heart of Toodies. You maintain ownership of your concepts while granting us the necessary license for artisanal production.
               </p>
+              <div className="p-4 bg-[#d4af37]/5 border border-[#d4af37]/20 rounded-2xl italic text-[13px] text-slate-300">
+                "Custom masterpieces enter production immediately upon validation and cannot be retracted."
+              </div>
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold text-cyan-200 mb-2">8. Limitation of Liability</h3>
-              <p>
-                To the fullest extent permitted by law, we provide our services "as is" without warranties of any kind. Our total liability shall not exceed the amount you paid for the product.
-              </p>
+              <h3 className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] mb-3">4. Artisanal Standards & Logistics</h3>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#d4af37] mt-1.5 flex-shrink-0" />
+                  <span>Bespoke orders undergo a 7-10 day curation phase before dispatch.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#d4af37] mt-1.5 flex-shrink-0" />
+                  <span>Premium shipping ensures your statement piece arrives in pristine condition.</span>
+                </li>
+              </ul>
             </section>
-
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mt-4">
-              <p className="text-yellow-200 text-sm">
-                <strong>Important:</strong> By checking the box below and clicking "Accept and Create Account", you confirm that you have read, understood, and agree to be bound by these Terms and Conditions and our Privacy Policy.
-              </p>
-            </div>
           </div>
 
-          <div className="mt-4 space-y-4 pt-4 border-t border-cyan-500/20">
-            <div className="flex items-start gap-3 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
+          <div className="mt-auto pt-6 border-t border-white/5 space-y-4">
+            <div className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl">
               <Checkbox
                 id="terms-accept-dialog"
                 checked={termsAccepted}
                 onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-                className="mt-1 border-cyan-500/50"
+                className="w-5 h-5 rounded border-[#d4af37]/50 data-[state=checked]:bg-[#d4af37] data-[state=checked]:text-black"
               />
-              <Label htmlFor="terms-accept-dialog" className="text-sm text-cyan-100 cursor-pointer flex-1">
-                I have read and agree to the Terms and Conditions and Privacy Policy. I understand that custom orders cannot be cancelled once production has started.
+              <Label htmlFor="terms-accept-dialog" className="text-xs font-bold text-slate-300 cursor-pointer flex-1 uppercase tracking-tight">
+                I accept the membership protocols and wish to proceed with integration.
               </Label>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() => setShowTermsDialog(false)}
-                className="flex-1 border-cyan-500/30 text-cyan-100 hover:bg-cyan-500/10"
+                className="flex-1 h-12 text-slate-500 font-bold uppercase tracking-widest text-[10px]"
               >
-                Cancel
+                Decline
               </Button>
               <Button
                 type="button"
                 disabled={!termsAccepted}
                 onClick={() => {
                   if (termsAccepted) {
-                    setHasReadTerms(true);
                     setShowTermsDialog(false);
-                    toast.success('Terms accepted! You can now create your account.');
-                  } else {
-                    toast.error('Please accept the terms and conditions to continue');
+                    toast.success('Protocol Accepted. Welcome aboard.');
                   }
                 }}
-                className="flex-1 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button border-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 h-12 bg-[#d4af37] text-black font-black uppercase tracking-[2px] text-[10px] rounded-xl border-0 disabled:opacity-30"
               >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Accept and Continue
+                Validate Membership
               </Button>
             </div>
           </div>
@@ -542,4 +507,24 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
       </Dialog>
     </div>
   );
+}
+
+function ShieldCheck(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  )
 }

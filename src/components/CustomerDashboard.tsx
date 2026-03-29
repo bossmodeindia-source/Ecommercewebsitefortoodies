@@ -1,9 +1,10 @@
+import image_c561690211cdd59869b2af6c111db0bf09f362da from 'figma:asset/c561690211cdd59869b2af6c111db0bf09f362da.png'
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, Palette, Package, User as UserIcon, X, Menu, LogOut, Search, Bell, HeadphonesIcon, MessageCircle } from 'lucide-react';
 import { OrderTracking } from './OrderTracking';
 import { CustomerProfile } from './CustomerProfile';
-import { PaymentDialog } from './PaymentDialog';
+import { EnhancedPaymentDialog } from './EnhancedPaymentDialog';
 import { CheckoutDialog } from './CheckoutDialog';
 import { PopupDisplay } from './PopupDisplay';
 import { ShoppingCart } from './ShoppingCart';
@@ -23,6 +24,7 @@ import { Badge } from './ui/badge';
 import { User, Product, CartItem, Order, CustomDesign } from '../types';
 import { storageUtils } from '../utils/storage';
 import { notificationService } from '../utils/notifications';
+import { toast } from 'sonner@2.0.3';
 
 import toodiesLogo from 'figma:asset/d31f1d417f75594ba1ab67a4c64ef32e85ec2234.png';
 
@@ -56,6 +58,9 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
   const [isHelpCenterOpen, setIsHelpCenterOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  // Store original cart for Buy Now restoration
+  const [originalCart, setOriginalCart] = useState<CartItem[] | null>(null);
 
   // Help Center button dragging
   const [helpButtonPosition, setHelpButtonPosition] = useState({ x: 0, y: 0 });
@@ -229,9 +234,56 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
     setIsCheckoutDialogOpen(true);
   };
 
-  const handleProceedToPayment = (address: string, designUrl: string) => {
+  // Handle Buy Now for individual item from cart
+  const handleBuyNow = (productId: string, variationId: string) => {
+    if (!currentUser.emailVerified || !currentUser.mobileVerified) {
+      toast.error('Please verify your email and mobile number before placing an order');
+      setActiveTab('profile');
+      return;
+    }
+
+    // Find the specific cart item
+    const cartItem = cart.find(item => item.productId === productId && item.variationId === variationId);
+    if (!cartItem) {
+      toast.error('Item not found in cart');
+      return;
+    }
+
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+      toast.error('Product not found');
+      return;
+    }
+
+    const variation = product.variations.find(v => v.id === variationId);
+    if (!variation) {
+      toast.error('Product variation not found');
+      return;
+    }
+
+    // Calculate total for this single item
+    const total = variation.price * cartItem.quantity;
+
+    // Temporarily store the cart and replace with single item
+    const backupCart = [...cart];
+    setCart([cartItem]);
+    setOriginalCart(backupCart);
+
+    setCheckoutTotal(total);
+    setCheckoutDiscount(0);
+    setCheckoutCouponCode('');
+    setShippingAddress(currentUser.address || '');
+    setCustomDesignUrl('');
+    setIsCheckoutDialogOpen(true);
+
+    // Toast to inform user
+    toast.success(`Proceeding to checkout with ${product.name}`, {
+      description: `${variation.color} • ${variation.size} • Qty: ${cartItem.quantity}`
+    });
+  };
+
+  const handleProceedToPayment = (address: string) => {
     setShippingAddress(address);
-    setCustomDesignUrl(designUrl);
     setIsCheckoutDialogOpen(false);
     setIsPaymentDialogOpen(true);
   };
@@ -260,6 +312,25 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
 
     storageUtils.createOrder(order);
     
+    // Handle cart cleanup based on whether it was a Buy Now or Checkout All
+    let finalCart: CartItem[];
+    if (originalCart) {
+      // This was a Buy Now - remove purchased items from original cart
+      const purchasedItemIds = cart.map(item => `${item.productId}-${item.variationId}`);
+      finalCart = originalCart.filter(
+        item => !purchasedItemIds.includes(`${item.productId}-${item.variationId}`)
+      );
+      setOriginalCart(null);
+    } else {
+      // This was Checkout All - clear the entire cart
+      finalCart = [];
+    }
+    
+    // Update cart in storage and state
+    const updatedUser = { ...currentUser, cart: finalCart };
+    storageUtils.updateCurrentUser(updatedUser);
+    setCart(finalCart);
+    
     // Mark customer designs in the order as paid
     if (currentUser.savedCustomerDesigns && currentUser.savedCustomerDesigns.length > 0) {
       // Find designs that are in the order
@@ -276,8 +347,8 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
         return design;
       });
       
-      const updatedUser = { ...currentUser, savedCustomerDesigns: updatedDesigns };
-      storageUtils.updateCurrentUser(updatedUser);
+      const updatedUserWithDesigns = { ...updatedUser, savedCustomerDesigns: updatedDesigns };
+      storageUtils.updateCurrentUser(updatedUserWithDesigns);
     }
     
     notificationService.sendWhatsAppNotification(currentUser.mobile, order);
@@ -389,12 +460,12 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
   ];
 
   return (
-    <div className="min-h-screen bg-[#05070a] text-slate-100 flex overflow-hidden">
+    <div className="min-h-screen bg-black text-slate-100 flex overflow-hidden selection:bg-[#d4af37]/30">
       {/* Sidebar Navigation - Desktop */}
       <motion.aside 
         initial={false}
         animate={{ width: isSidebarOpen ? 260 : 80 }}
-        className="hidden lg:flex flex-col glass-card border-r border-cyan-500/10 h-screen sticky top-0 z-50 bg-[#080b14]/80 backdrop-blur-2xl transition-all duration-300"
+        className="hidden lg:flex flex-col glass-card border-r border-[#d4af37]/10 h-screen sticky top-0 z-50 bg-black/80 backdrop-blur-2xl transition-all duration-300"
       >
         <div className="p-6 flex items-center justify-between">
           <AnimatePresence mode="wait">
@@ -404,7 +475,7 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                src={toodiesLogo} 
+                src={image_c561690211cdd59869b2af6c111db0bf09f362da} 
                 alt="Toodies" 
                 className="h-8 w-auto" 
               />
@@ -414,7 +485,7 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
             variant="ghost" 
             size="icon" 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="text-slate-500 hover:text-cyan-400"
+            className="text-slate-500 hover:text-[#d4af37]"
           >
             {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>
@@ -427,11 +498,11 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
               onClick={() => setActiveTab(item.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
                 activeTab === item.id 
-                  ? 'bg-gradient-to-r from-cyan-500/20 to-teal-500/10 text-cyan-400 border border-cyan-500/20' 
+                  ? 'bg-gradient-to-r from-[#d4af37]/20 to-transparent text-[#d4af37] border border-[#d4af37]/20' 
                   : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
               }`}
             >
-              <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-cyan-400' : ''}`} />
+              <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-[#d4af37]' : ''}`} />
               <AnimatePresence>
                 {isSidebarOpen && (
                   <motion.span 
@@ -445,7 +516,7 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
                 )}
               </AnimatePresence>
               {item.id === 'orders' && currentUser.orders.length > 0 && isSidebarOpen && (
-                <Badge className="ml-auto bg-cyan-500/20 text-cyan-400 border-0 h-5 px-1.5 text-[10px]">
+                <Badge className="ml-auto bg-[#d4af37]/20 text-[#d4af37] border-0 h-5 px-1.5 text-[10px]">
                   {currentUser.orders.length}
                 </Badge>
               )}
@@ -465,22 +536,22 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
       </motion.aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#05070a] relative">
+      <main className="flex-1 flex flex-col min-w-0 bg-black relative">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[120px]" />
-          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-teal-500/5 rounded-full blur-[120px]" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#d4af37]/5 rounded-full blur-[120px]" />
+          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#d4af37]/3 rounded-full blur-[120px]" />
         </div>
 
         {/* Top Header */}
-        <header className="h-20 glass-card border-b border-white/5 sticky top-0 z-40 px-6 flex items-center justify-between gap-4 bg-[#05070a]/40 backdrop-blur-xl">
+        <header className="h-20 glass-card border-b border-white/5 sticky top-0 z-40 px-6 flex items-center justify-between gap-4 bg-black/40 backdrop-blur-xl">
           <div className="flex-1 max-w-2xl relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <Input 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search premium collections..." 
-              className="bg-white/5 border-white/10 h-11 pl-12 rounded-xl focus:border-cyan-500/50 focus:ring-cyan-500/10 w-full"
+              className="bg-white/5 border-white/10 h-11 pl-12 rounded-xl focus:border-[#d4af37]/50 focus:ring-[#d4af37]/10 w-full"
             />
           </div>
 
@@ -491,6 +562,7 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveItem}
               onCheckout={handleCheckout}
+              onBuyNow={handleBuyNow}
             />
             
             {/* Notification Bell */}
@@ -498,11 +570,11 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
               variant="ghost"
               size="icon"
               onClick={() => setIsHelpCenterOpen(true)}
-              className="relative h-10 w-10 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/30 transition-all"
+              className="relative h-10 w-10 rounded-xl bg-white/5 hover:bg-[#d4af37]/10 border border-white/10 hover:border-[#d4af37]/30 transition-all"
             >
-              <Bell className="w-5 h-5 text-slate-400 hover:text-cyan-400 transition-colors" />
+              <Bell className="w-5 h-5 text-slate-400 hover:text-[#d4af37] transition-colors" />
               {notificationCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-[#05070a] animate-bounce">
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-black animate-bounce">
                   {notificationCount}
                 </span>
               )}
@@ -513,13 +585,13 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
             <div className="flex items-center gap-3 pl-2">
               <div className="hidden sm:flex flex-col items-end">
                 <p className="text-xs font-bold text-white leading-none mb-1">{currentUser.name || 'Member'}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-tighter">Gold Member</p>
+                <p className="text-[10px] text-[#d4af37] uppercase tracking-tighter">Gold Member</p>
               </div>
               <div 
-                className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform border border-white/10"
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4af37] to-[#c9a227] flex items-center justify-center cursor-pointer hover:scale-105 transition-transform border border-white/10"
                 onClick={() => setActiveTab('profile')}
               >
-                <UserIcon className="w-5 h-5 text-white" />
+                <UserIcon className="w-5 h-5 text-black" />
               </div>
             </div>
           </div>
@@ -538,25 +610,25 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
               {activeTab === 'shop' && (
                 <div className="space-y-10">
                   {/* Hero Callout */}
-                  <Card className="glass-card border-cyan-500/30 overflow-hidden relative rounded-3xl group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-teal-500/20 group-hover:opacity-100 transition-opacity" />
+                  <Card className="glass-card border-[#d4af37]/20 overflow-hidden relative rounded-[40px] group luxury-glow">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#d4af37]/10 via-transparent to-[#d4af37]/5 group-hover:opacity-100 transition-opacity" />
                     <CardContent className="p-8 lg:p-12 relative z-10">
                       <div className="flex flex-col lg:flex-row items-center justify-between gap-10">
                         <div className="flex-1 space-y-6">
-                          <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 px-3 py-1 text-[10px] uppercase tracking-widest font-bold">
-                            Advanced Technology
+                          <Badge className="bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30 px-3 py-1 text-[10px] uppercase tracking-[2px] font-bold">
+                            Premium Experience
                           </Badge>
-                          <h2 className="text-4xl lg:text-5xl font-black text-white leading-tight">
-                            Create Your <br />
-                            <span className="bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">2D Masterpiece</span>
+                          <h2 className="text-4xl lg:text-6xl font-black text-white leading-tight tracking-tight">
+                            Design Your <br />
+                            <span className="gradient-text glow-text">Statement Piece</span>
                           </h2>
-                          <p className="text-slate-400 text-lg max-w-xl">
-                            Design custom products with our integrated 2D studio. Upload your images, choose colors, and bring your vision to life.
+                          <p className="text-slate-400 text-lg max-w-xl font-light">
+                            Craft bespoke luxury with our integrated 2D studio. High-resolution previews for the discerning eye.
                           </p>
                           <div className="pt-2">
                             <Button
                               onClick={onOpen2DStudio || handleDesignerClick}
-                              className="bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button h-14 px-8 text-lg rounded-2xl border-0"
+                              className="glow-button h-16 px-10 text-lg rounded-2xl border-0 shadow-lg"
                             >
                               <Palette className="w-5 h-5 mr-3" />
                               Launch 2D Studio
@@ -564,13 +636,13 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
                           </div>
                         </div>
                         <div className="relative hidden xl:block">
-                          <div className="w-64 h-64 bg-cyan-500/20 rounded-full blur-[60px] animate-pulse absolute inset-0 m-auto" />
+                          <div className="w-64 h-64 bg-[#d4af37]/10 rounded-full blur-[60px] animate-pulse absolute inset-0 m-auto" />
                           <motion.div 
                             animate={{ rotate: 360 }}
-                            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                            className="relative z-10 p-8 rounded-full border-2 border-dashed border-cyan-500/20"
+                            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                            className="relative z-10 p-10 rounded-full border-2 border-dashed border-[#d4af37]/20"
                           >
-                            <Palette className="w-32 h-32 text-cyan-500/40" />
+                            <Palette className="w-32 h-32 text-[#d4af37]/30" />
                           </motion.div>
                         </div>
                       </div>
@@ -656,12 +728,12 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
               {activeTab === 'designs' && (
                 <div className="space-y-8">
                   <div className="flex items-center gap-4 mb-8">
-                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
-                      <Palette className="w-6 h-6 text-cyan-400" />
+                    <div className="w-12 h-12 rounded-2xl bg-[#d4af37]/10 flex items-center justify-center border border-[#d4af37]/20">
+                      <Palette className="w-6 h-6 text-[#d4af37]" />
                     </div>
                     <div>
-                      <h2 className="text-3xl font-bold text-white">Your Design Studio</h2>
-                      <p className="text-slate-500">View and purchase your custom creations</p>
+                      <h2 className="text-3xl font-bold text-white tracking-tight">Your Design Studio</h2>
+                      <p className="text-slate-500 font-light">View and purchase your custom creations</p>
                     </div>
                   </div>
                   <StudioMyCustomDesigns />
@@ -671,12 +743,12 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
               {activeTab === 'orders' && (
                 <div className="space-y-8">
                   <div className="flex items-center gap-4 mb-8">
-                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
-                      <Package className="w-6 h-6 text-cyan-400" />
+                    <div className="w-12 h-12 rounded-2xl bg-[#d4af37]/10 flex items-center justify-center border border-[#d4af37]/20">
+                      <Package className="w-6 h-6 text-[#d4af37]" />
                     </div>
                     <div>
-                      <h2 className="text-3xl font-bold text-white">Order Tracking</h2>
-                      <p className="text-slate-500">Real-time status of your premium apparel</p>
+                      <h2 className="text-3xl font-bold text-white tracking-tight">Order Tracking</h2>
+                      <p className="text-slate-500 font-light">Real-time status of your premium apparel</p>
                     </div>
                   </div>
                   <OrderTracking user={currentUser} />
@@ -686,12 +758,12 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
               {activeTab === 'profile' && (
                 <div className="space-y-8">
                   <div className="flex items-center gap-4 mb-8">
-                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
-                      <UserIcon className="w-6 h-6 text-cyan-400" />
+                    <div className="w-12 h-12 rounded-2xl bg-[#d4af37]/10 flex items-center justify-center border border-[#d4af37]/20">
+                      <UserIcon className="w-6 h-6 text-[#d4af37]" />
                     </div>
                     <div>
-                      <h2 className="text-3xl font-bold text-white">Account Settings</h2>
-                      <p className="text-slate-500">Manage your profile and security</p>
+                      <h2 className="text-3xl font-bold text-white tracking-tight">Account Settings</h2>
+                      <p className="text-slate-500 font-light">Manage your profile and security</p>
                     </div>
                   </div>
                   <CustomerProfile user={currentUser} onUpdate={(updatedUser) => setCurrentUser(updatedUser)} />
@@ -702,13 +774,13 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
         </div>
 
         {/* Mobile Navigation - Bottom Bar */}
-        <nav className="lg:hidden h-20 glass-card border-t border-white/5 sticky bottom-0 z-50 px-6 flex items-center justify-around bg-[#080b14]/90 backdrop-blur-xl">
+        <nav className="lg:hidden h-20 glass-card border-t border-white/5 sticky bottom-0 z-50 px-6 flex items-center justify-around bg-black/90 backdrop-blur-xl">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               className={`flex flex-col items-center gap-1 transition-all ${
-                activeTab === item.id ? 'text-cyan-400' : 'text-slate-500'
+                activeTab === item.id ? 'text-[#d4af37]' : 'text-slate-500'
               }`}
             >
               <item.icon className="w-6 h-6" />
@@ -716,7 +788,7 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
               {activeTab === item.id && (
                 <motion.div 
                   layoutId="mobileNavLine"
-                  className="w-8 h-1 bg-cyan-500 rounded-full mt-1"
+                  className="w-8 h-1 bg-[#d4af37] rounded-full mt-1 shadow-[0_0_10px_#d4af37]"
                 />
               )}
             </button>
@@ -735,7 +807,7 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
         onAddToCart={handleAddToCart}
       />
 
-      <PaymentDialog
+      <EnhancedPaymentDialog
         isOpen={isPaymentDialogOpen}
         onClose={() => setIsPaymentDialogOpen(false)}
         total={checkoutTotal}
@@ -744,14 +816,19 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
 
       <CheckoutDialog
         isOpen={isCheckoutDialogOpen}
-        onClose={() => setIsCheckoutDialogOpen(false)}
+        onClose={() => {
+          setIsCheckoutDialogOpen(false);
+          if (originalCart) {
+            setCart(originalCart);
+            setOriginalCart(null);
+          }
+        }}
         cart={cart}
         products={products}
         total={checkoutTotal}
         discount={checkoutDiscount}
         couponCode={checkoutCouponCode}
         shippingAddress={shippingAddress}
-        customDesignUrl={customDesignUrl}
         onProceedToPayment={handleProceedToPayment}
       />
 
@@ -785,12 +862,12 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
           <Button
             onClick={handleHelpButtonClick}
             onMouseDown={handleHelpButtonMouseDown}
-            className={`w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-600 hover:from-cyan-400 hover:to-teal-500 text-white glow-button border-0 shadow-2xl relative group overflow-hidden transition-all active:scale-95 ${isHelpButtonDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            className={`w-16 h-16 rounded-2xl bg-gradient-to-br from-[#d4af37] to-[#c9a227] hover:from-[#c9a227] hover:to-[#d4af37] text-black border-0 shadow-2xl relative group overflow-hidden transition-all active:scale-95 ${isHelpButtonDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           >
             <div className="absolute inset-0 bg-white/20 translate-y-16 group-hover:translate-y-0 transition-transform duration-300" />
             <HeadphonesIcon className="w-8 h-8 relative z-10 pointer-events-none" />
             {notificationCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-[#05070a] animate-bounce shadow-lg pointer-events-none">
+              <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-black animate-bounce shadow-lg pointer-events-none">
                 {notificationCount}
               </span>
             )}

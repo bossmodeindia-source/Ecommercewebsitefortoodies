@@ -355,6 +355,25 @@ export const storageUtils = {
     smtpPassword?: string;
     emailEnabled?: boolean;
     emailProvider?: 'gmail' | 'smtp' | 'sendgrid';
+    // SMS API Configuration
+    smsEnabled?: boolean;
+    smsProvider?: 'twilio' | 'msg91' | 'aws-sns' | 'other';
+    twilioAccountSid?: string;
+    twilioAuthToken?: string;
+    twilioPhoneNumber?: string;
+    msg91AuthKey?: string;
+    msg91SenderId?: string;
+    msg91TemplateId?: string;
+    awsSnsAccessKeyId?: string;
+    awsSnsSecretAccessKey?: string;
+    awsSnsRegion?: string;
+    otherSmsApiUrl?: string;
+    otherSmsApiKey?: string;
+    otherSmsApiMethod?: 'GET' | 'POST';
+    // SEO & Analytics
+    googleAnalyticsId?: string;
+    facebookPixelId?: string;
+    analyticsEnabled?: boolean;
     companyGSTIN?: string;
     companyAddress?: string;
     companyLogo?: string;
@@ -391,6 +410,25 @@ export const storageUtils = {
       smtpPassword: '',
       emailEnabled: false,
       emailProvider: 'gmail',
+      // SMS API defaults
+      smsEnabled: false,
+      smsProvider: 'twilio',
+      twilioAccountSid: '',
+      twilioAuthToken: '',
+      twilioPhoneNumber: '',
+      msg91AuthKey: '',
+      msg91SenderId: '',
+      msg91TemplateId: '',
+      awsSnsAccessKeyId: '',
+      awsSnsSecretAccessKey: '',
+      awsSnsRegion: 'us-east-1',
+      otherSmsApiUrl: '',
+      otherSmsApiKey: '',
+      otherSmsApiMethod: 'POST',
+      // SEO & Analytics defaults
+      googleAnalyticsId: '',
+      facebookPixelId: '',
+      analyticsEnabled: false,
       companyGSTIN: '',
       companyAddress: '',
       companyLogo: '',
@@ -434,7 +472,29 @@ export const storageUtils = {
     bankAccountName?: string,
     bankAccountNumber?: string,
     bankIFSC?: string,
-    bankName?: string
+    bankName?: string,
+    // SMS API parameters
+    smsEnabled?: boolean,
+    smsProvider?: 'twilio' | 'msg91' | 'aws-sns' | 'other',
+    twilioAccountSid?: string,
+    twilioAuthToken?: string,
+    twilioPhoneNumber?: string,
+    msg91AuthKey?: string,
+    msg91SenderId?: string,
+    msg91TemplateId?: string,
+    awsSnsAccessKeyId?: string,
+    awsSnsSecretAccessKey?: string,
+    awsSnsRegion?: string,
+    otherSmsApiUrl?: string,
+    otherSmsApiKey?: string,
+    otherSmsApiMethod?: 'GET' | 'POST',
+    // SEO & Analytics parameters
+    googleAnalyticsId?: string,
+    facebookPixelId?: string,
+    analyticsEnabled?: boolean,
+    // Background Removal API parameters
+    backgroundRemovalApiKey?: string,
+    backgroundRemovalEnabled?: boolean
   ) => {
     const currentSettings = storageUtils.getAdminSettings();
     localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify({ 
@@ -457,6 +517,28 @@ export const storageUtils = {
       smtpPassword: smtpPassword || '',
       emailEnabled: emailEnabled || false,
       emailProvider: emailProvider || 'gmail',
+      // SMS API settings
+      smsEnabled: smsEnabled || false,
+      smsProvider: smsProvider || 'twilio',
+      twilioAccountSid: twilioAccountSid || '',
+      twilioAuthToken: twilioAuthToken || '',
+      twilioPhoneNumber: twilioPhoneNumber || '',
+      msg91AuthKey: msg91AuthKey || '',
+      msg91SenderId: msg91SenderId || '',
+      msg91TemplateId: msg91TemplateId || '',
+      awsSnsAccessKeyId: awsSnsAccessKeyId || '',
+      awsSnsSecretAccessKey: awsSnsSecretAccessKey || '',
+      awsSnsRegion: awsSnsRegion || 'us-east-1',
+      otherSmsApiUrl: otherSmsApiUrl || '',
+      otherSmsApiKey: otherSmsApiKey || '',
+      otherSmsApiMethod: otherSmsApiMethod || 'POST',
+      // SEO & Analytics settings
+      googleAnalyticsId: googleAnalyticsId || '',
+      facebookPixelId: facebookPixelId || '',
+      analyticsEnabled: analyticsEnabled || false,
+      // Background Removal API settings
+      backgroundRemovalApiKey: backgroundRemovalApiKey || '',
+      backgroundRemovalEnabled: backgroundRemovalEnabled || false,
       companyGSTIN: companyGSTIN || '',
       companyAddress: companyAddress || '',
       companyLogo: companyLogo || '',
@@ -510,9 +592,9 @@ export const storageUtils = {
     storageUtils.saveCoupons(coupons);
   },
 
-  updateCoupon: (couponId: string, updatedCoupon: Coupon) => {
+  updateCoupon: (updatedCoupon: Coupon) => {
     const coupons = storageUtils.getCoupons();
-    const index = coupons.findIndex(c => c.id === couponId);
+    const index = coupons.findIndex(c => c.id === updatedCoupon.id);
     if (index !== -1) {
       coupons[index] = updatedCoupon;
       storageUtils.saveCoupons(coupons);
@@ -686,6 +768,7 @@ export const storageUtils = {
       gstin: 'YOUR_GSTIN_NUMBER',
       website: 'https://www.toodies.com',
       supportHours: 'Mon-Sat: 9:00 AM - 6:00 PM IST',
+      heroImage: '', // Default empty, admin can upload
       socialMedia: {
         facebook: '',
         instagram: '',

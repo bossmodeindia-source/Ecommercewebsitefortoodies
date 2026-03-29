@@ -114,26 +114,37 @@ export function ThreeDModelManager() {
 
     if (!formData.productId) {
       console.error('Validation failed: No Product ID');
-      toast.error('Please enter a Product ID');
+      toast.error('Please select a Product from the dropdown', {
+        description: 'You must select a product before saving the 2D design configuration'
+      });
       return;
     }
 
     if (!formData.modelUrl) {
       console.error('Validation failed: No Model URL');
-      toast.error('Please provide a Model URL');
+      toast.error('Please upload a 2D mockup image', {
+        description: 'A mockup image is required for the design configuration'
+      });
       return;
     }
 
+    // Colors are optional - just show a warning
     if (formData.availableColors.length === 0) {
-      console.error('Validation failed: No colors');
-      toast.error('Please add at least one color');
-      return;
+      console.warn('Warning: No colors added, using default colors');
+      toast('No colors added - using default colors', {
+        description: 'Add colors later by editing the model'
+      });
+      // Add default colors
+      formData.availableColors = ['#000000', '#FFFFFF', '#FF0000'];
     }
 
+    // Sizes are optional - just show a warning
     if (formData.availableSizes.length === 0) {
-      console.error('Validation failed: No sizes');
-      toast.error('Please add at least one size');
-      return;
+      toast('No sizes added - using default sizes', {
+        description: 'Add sizes later by editing the model'
+      });
+      // Add default sizes
+      formData.availableSizes = ['S', 'M', 'L', 'XL'];
     }
 
     // Printing methods are optional - no warning needed
@@ -450,7 +461,14 @@ export function ThreeDModelManager() {
       </div>
 
       {/* Add/Edit Model Dialog */}
-      <Dialog open={isAddingModel} onOpenChange={(open) => !open && resetForm()}>
+      <Dialog open={isAddingModel} onOpenChange={(open) => {
+        if (!open) {
+          resetForm();
+        } else {
+          // Reload products when dialog opens
+          setProducts(storageUtils.getProducts());
+        }
+      }}>
         <DialogContent aria-describedby={undefined} className="glass-card border-cyan-500/30 max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-cyan-100 text-xl">
@@ -466,7 +484,12 @@ export function ThreeDModelManager() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-cyan-300 text-xs">Select Product *</Label>
+                  <Label className="text-cyan-300 text-xs flex items-center gap-2">
+                    Select Product * 
+                    {!formData.productId && (
+                      <span className="text-red-400 text-[10px] animate-pulse">⚠ Required</span>
+                    )}
+                  </Label>
                   <select
                     value={formData.productId}
                     onChange={(e) => {
@@ -477,7 +500,9 @@ export function ThreeDModelManager() {
                         // Optionally auto-fill name if needed, though ThreeDModelConfig doesn't have productName field in the interface
                       });
                     }}
-                    className="w-full h-10 px-3 rounded-md bg-slate-800/50 border border-cyan-500/30 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    className={`w-full h-10 px-3 rounded-md bg-slate-800/50 border ${
+                      !formData.productId ? 'border-red-500/50' : 'border-cyan-500/30'
+                    } text-white focus:outline-none focus:ring-1 focus:ring-cyan-500`}
                   >
                     <option value="">Select a product...</option>
                     {products.map(product => (
@@ -487,16 +512,29 @@ export function ThreeDModelManager() {
                     ))}
                   </select>
                   <p className="text-[10px] text-slate-500 mt-1">
-                    Matching the correct Product ID is essential for the 2D Studio to display the model.
+                    {products.length === 0 ? (
+                      <span className="text-yellow-400">⚠ No products available. Please add products first in the Product Management section.</span>
+                    ) : (
+                      'Matching the correct Product ID is essential for the 2D Studio to display the model.'
+                    )}
                   </p>
                 </div>
 
                 <div>
-                  <Label className="text-cyan-300 text-xs">2D Mockup Image Upload *</Label>
+                  <Label className="text-cyan-300 text-xs flex items-center gap-2">
+                    2D Mockup Image Upload *
+                    {!formData.mockupImageUrl && !formData.modelUrl && (
+                      <span className="text-red-400 text-[10px] animate-pulse">⚠ Required</span>
+                    )}
+                  </Label>
                   <div className="space-y-3">
                     <div 
                       onClick={() => mockupImageInputRef.current?.click()}
-                      className="border-2 border-dashed border-cyan-500/30 rounded-xl p-8 hover:border-cyan-500/60 transition-all cursor-pointer bg-slate-800/30 hover:bg-slate-800/50"
+                      className={`border-2 border-dashed rounded-xl p-8 hover:border-cyan-500/60 transition-all cursor-pointer ${
+                        !formData.mockupImageUrl && !formData.modelUrl
+                          ? 'border-red-500/30 bg-red-500/5 hover:bg-red-500/10'
+                          : 'border-cyan-500/30 bg-slate-800/30 hover:bg-slate-800/50'
+                      }`}
                     >
                       <input
                         ref={mockupImageInputRef}
@@ -511,21 +549,59 @@ export function ThreeDModelManager() {
                               return;
                             }
                             
-                            // Create object URL for preview
-                            const imageUrl = URL.createObjectURL(file);
-                            
-                            // Convert to base64 for storage
+                            // Load image and convert to perfect square
+                            const img = new Image();
                             const reader = new FileReader();
-                            reader.onloadend = () => {
-                              const base64String = reader.result as string;
-                              setFormData({
-                                ...formData,
-                                mockupImage: file,
-                                mockupImageUrl: base64String,
-                                modelUrl: base64String // Use the same URL for modelUrl
-                              });
-                              toast.success('2D mockup image uploaded!');
+                            
+                            reader.onload = (e) => {
+                              img.onload = () => {
+                                // Create square canvas
+                                const maxDimension = Math.max(img.width, img.height);
+                                const canvas = document.createElement('canvas');
+                                canvas.width = maxDimension;
+                                canvas.height = maxDimension;
+                                
+                                const ctx = canvas.getContext('2d');
+                                if (!ctx) {
+                                  toast.error('Failed to process image');
+                                  return;
+                                }
+                                
+                                // Fill with white background
+                                ctx.fillStyle = '#FFFFFF';
+                                ctx.fillRect(0, 0, maxDimension, maxDimension);
+                                
+                                // Calculate position to center the image
+                                const x = (maxDimension - img.width) / 2;
+                                const y = (maxDimension - img.height) / 2;
+                                
+                                // Draw image centered in square
+                                ctx.drawImage(img, x, y, img.width, img.height);
+                                
+                                // Convert to base64
+                                const squareBase64 = canvas.toDataURL('image/png', 1.0);
+                                
+                                setFormData({
+                                  ...formData,
+                                  mockupImage: file,
+                                  mockupImageUrl: squareBase64,
+                                  modelUrl: squareBase64
+                                });
+                                
+                                toast.success(`Image converted to ${maxDimension}x${maxDimension} square!`);
+                              };
+                              
+                              img.onerror = () => {
+                                toast.error('Failed to load image');
+                              };
+                              
+                              img.src = e.target?.result as string;
                             };
+                            
+                            reader.onerror = () => {
+                              toast.error('Failed to read file');
+                            };
+                            
                             reader.readAsDataURL(file);
                           }
                         }}
@@ -539,6 +615,9 @@ export function ThreeDModelManager() {
                         <p className="text-slate-500 text-xs">
                           Click to select PNG, JPG, or JPEG (Max 5MB)
                         </p>
+                        <p className="text-gold-400 text-xs mt-2 font-semibold">
+                          ✨ Auto-converts to perfect square for easy positioning
+                        </p>
                       </div>
                     </div>
                     
@@ -549,6 +628,9 @@ export function ThreeDModelManager() {
                           alt="Mockup preview" 
                           className="w-full h-48 object-contain bg-slate-900"
                         />
+                        <div className="absolute top-2 left-2 bg-black/70 text-gold-400 text-xs px-2 py-1 rounded">
+                          📐 Perfect Square
+                        </div>
                         <Button
                           size="sm"
                           variant="destructive"
@@ -572,7 +654,7 @@ export function ThreeDModelManager() {
                     )}
                   </div>
                   <p className="text-xs text-slate-500 mt-2">
-                    Upload a high-quality 2D mockup image where customers can place their designs
+                    Upload a high-quality 2D mockup image. It will be automatically converted to a perfect square for optimal positioning.
                   </p>
                 </div>
 
@@ -883,12 +965,44 @@ export function ThreeDModelManager() {
               </Button>
               <Button
                 onClick={handleSaveModel}
-                className="flex-1 bg-gradient-to-r from-cyan-500 to-teal-500 text-white"
+                disabled={!formData.productId || !formData.modelUrl}
+                className={`flex-1 ${
+                  !formData.productId || !formData.modelUrl
+                    ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-cyan-500 to-teal-500 text-white hover:from-cyan-600 hover:to-teal-600'
+                }`}
               >
                 <Save className="w-4 h-4 mr-2" />
                 {editingModel ? 'Update Model' : 'Save Model'}
               </Button>
             </div>
+            
+            {/* Validation Warning */}
+            {(!formData.productId || !formData.modelUrl) && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-red-400 text-xs">!</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-red-400 font-semibold text-sm mb-1">Required Fields Missing</p>
+                    <ul className="text-red-300 text-xs space-y-1">
+                      {!formData.productId && (
+                        <li>• Please select a Product from the dropdown above</li>
+                      )}
+                      {!formData.modelUrl && (
+                        <li>• Please upload a 2D mockup image</li>
+                      )}
+                    </ul>
+                    {products.length === 0 && (
+                      <p className="text-yellow-400 text-xs mt-2 font-semibold">
+                        💡 Tip: Create products first in the "Product Management" section, then come back here.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -1,429 +1,372 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Checkbox } from './ui/checkbox';
-import { Invoice, Order } from '../types';
-import { invoiceUtils } from '../utils/invoiceGenerator';
-import { storageUtils } from '../utils/storage';
+import { Card, CardContent } from './ui/card';
+import { FileText, Save, X, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
-import { FileText, Download, Save, Plus, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Order } from '../types';
 
-interface InvoiceEditorProps {
-  order: Order;
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (invoice: Invoice) => void;
-  onDownload: (invoice: Invoice) => void;
+interface InvoiceItem {
+  description: string;
+  quantity: number;
+  rate: number;
+  amount: number;
 }
 
-export function InvoiceEditor({ order, isOpen, onClose, onSave, onDownload }: InvoiceEditorProps) {
-  const [invoice, setInvoice] = useState<Invoice>(
-    order.invoice || invoiceUtils.generateInvoiceFromOrder(order)
+interface InvoiceEditorProps {
+  isOpen: boolean;
+  onClose: () => void;
+  order: Order;
+  initialInvoiceData?: any;
+  onSave: (invoiceData: any) => void;
+  onDownload?: (invoiceData: any) => void;
+}
+
+export function InvoiceEditor({
+  isOpen,
+  onClose,
+  order,
+  initialInvoiceData,
+  onSave,
+  onDownload
+}: InvoiceEditorProps) {
+  const [items, setItems] = useState<InvoiceItem[]>(
+    initialInvoiceData?.items || order.items.map(item => ({
+      description: item.productName || `Product ${item.productId}`,
+      quantity: item.quantity,
+      rate: item.price,
+      amount: item.quantity * item.price
+    }))
   );
+  const [invoiceNumber, setInvoiceNumber] = useState(initialInvoiceData?.invoiceNumber || `INV-${order.id.slice(-8).toUpperCase()}`);
+  const [invoiceDate, setInvoiceDate] = useState(initialInvoiceData?.invoiceDate || new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState(initialInvoiceData?.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+  const [notes, setNotes] = useState(initialInvoiceData?.notes || 'Thank you for your business!');
+  const [termsAndConditions, setTermsAndConditions] = useState(initialInvoiceData?.termsAndConditions || '1. Goods once sold cannot be returned.\n2. Custom designed items are non-refundable.');
+  const [taxRate, setTaxRate] = useState(initialInvoiceData?.taxRate || 18); // GST 18%
+  const [shippingCharge, setShippingCharge] = useState(initialInvoiceData?.shippingCharge || 0);
+  const [discount, setDiscount] = useState(initialInvoiceData?.discount || order.discount || 0);
 
-  useEffect(() => {
-    if (isOpen && !order.invoice) {
-      const newInvoice = invoiceUtils.generateInvoiceFromOrder(order);
-      setInvoice(newInvoice);
-    } else if (order.invoice) {
-      setInvoice(order.invoice);
+  const addItem = () => {
+    setItems([...items, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+  };
+
+  const removeItem = (index: number) => {
+    if (items.length > 1) {
+      const newItems = items.filter((_, i) => i !== index);
+      setItems(newItems);
     }
-  }, [order, isOpen]);
-
-  const handleUpdateItem = (index: number, field: string, value: any) => {
-    const updatedItems = [...invoice.items];
-    updatedItems[index] = {
-      ...updatedItems[index],
-      [field]: parseFloat(value) || 0
-    };
-
-    // Recalculate item totals
-    const item = updatedItems[index];
-    item.taxableAmount = item.unitPrice * item.quantity - item.discount;
-    item.gstAmount = (item.taxableAmount * item.gstRate) / 100;
-    item.total = item.taxableAmount + item.gstAmount;
-
-    const updatedInvoice = { ...invoice, items: updatedItems };
-    setInvoice(invoiceUtils.updateInvoiceCalculations(updatedInvoice));
   };
 
-  const handleRemoveItem = (index: number) => {
-    const updatedItems = invoice.items.filter((_, i) => i !== index);
-    const updatedInvoice = { ...invoice, items: updatedItems };
-    setInvoice(invoiceUtils.updateInvoiceCalculations(updatedInvoice));
+  const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
+    const newItems = [...items];
+    newItems[index] = {
+      ...newItems[index],
+      [field]: value
+    };
+    
+    // Auto-calculate amount
+    if (field === 'quantity' || field === 'rate') {
+      newItems[index].amount = newItems[index].quantity * newItems[index].rate;
+    }
+    
+    setItems(newItems);
   };
 
-  const handleAddItem = () => {
-    const newItem = {
-      id: Date.now().toString(),
-      productName: 'New Item',
-      description: '',
-      quantity: 1,
-      unitPrice: 0,
-      discount: 0,
-      taxableAmount: 0,
-      gstRate: invoice.gstRate,
-      gstAmount: 0,
-      total: 0
-    };
-    const updatedInvoice = { ...invoice, items: [...invoice.items, newItem] };
-    setInvoice(invoiceUtils.updateInvoiceCalculations(updatedInvoice));
+  const calculateSubtotal = () => {
+    return items.reduce((sum, item) => sum + item.amount, 0);
+  };
+
+  const calculateTax = () => {
+    return (calculateSubtotal() * taxRate) / 100;
+  };
+
+  const calculateTotal = () => {
+    return calculateSubtotal() + calculateTax() + shippingCharge - discount;
   };
 
   const handleSave = () => {
-    onSave(invoice);
+    if (!invoiceNumber.trim()) {
+      toast.error('Please enter an invoice number');
+      return;
+    }
+
+    if (items.some(item => !item.description.trim())) {
+      toast.error('Please fill in all item descriptions');
+      return;
+    }
+
+    const invoiceData = {
+      orderId: order.id,
+      invoiceNumber,
+      invoiceDate,
+      dueDate,
+      items,
+      subtotal: calculateSubtotal(),
+      taxRate,
+      taxAmount: calculateTax(),
+      shippingCharge,
+      discount,
+      total: calculateTotal(),
+      notes,
+      termsAndConditions,
+      updatedAt: new Date().toISOString()
+    };
+
+    onSave(invoiceData);
     toast.success('Invoice saved successfully!');
+    onClose();
   };
 
   const handleDownload = () => {
-    onDownload(invoice);
+    if (!invoiceNumber.trim()) {
+      toast.error('Please enter an invoice number');
+      return;
+    }
+
+    if (items.some(item => !item.description.trim())) {
+      toast.error('Please fill in all item descriptions');
+      return;
+    }
+
+    const invoiceData = {
+      orderId: order.id,
+      invoiceNumber,
+      invoiceDate,
+      dueDate,
+      items,
+      subtotal: calculateSubtotal(),
+      taxRate,
+      taxAmount: calculateTax(),
+      shippingCharge,
+      discount,
+      total: calculateTotal(),
+      notes,
+      termsAndConditions,
+      updatedAt: new Date().toISOString()
+    };
+
+    onDownload?.(invoiceData);
+    toast.success('Invoice downloaded successfully!');
+    onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass-card border-2 border-cyan-500/30 max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="glass-card border-cyan-500/30 max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-cyan-100 glow-text flex items-center gap-2">
-            <FileText className="w-6 h-6" />
-            Invoice Editor - {invoice.invoiceNumber}
+          <DialogTitle className="text-cyan-100 text-xl flex items-center gap-2">
+            <FileText className="w-5 h-5 text-cyan-400" />
+            Edit Invoice - {invoiceNumber}
           </DialogTitle>
           <DialogDescription className="text-slate-400">
-            Edit invoice details and download as PDF
+            Modify invoice details including dates, items, and customer information
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
-          {/* Company Details */}
-          <Card className="glass-card border-cyan-500/20">
-            <CardHeader>
-              <CardTitle className="text-cyan-100 text-lg">Company Details</CardTitle>
-            </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-cyan-100">Company Name</Label>
-                <Input
-                  value={invoice.companyName}
-                  onChange={(e) => setInvoice({ ...invoice, companyName: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                />
-              </div>
-              <div>
-                <Label className="text-cyan-100">GSTIN</Label>
-                <Input
-                  value={invoice.companyGSTIN}
-                  onChange={(e) => setInvoice({ ...invoice, companyGSTIN: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Label className="text-cyan-100">Address</Label>
-                <Textarea
-                  value={invoice.companyAddress}
-                  onChange={(e) => setInvoice({ ...invoice, companyAddress: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                  rows={2}
-                />
-              </div>
-              <div>
-                <Label className="text-cyan-100">Email</Label>
-                <Input
-                  value={invoice.companyEmail}
-                  onChange={(e) => setInvoice({ ...invoice, companyEmail: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                />
-              </div>
-              <div>
-                <Label className="text-cyan-100">Phone</Label>
-                <Input
-                  value={invoice.companyPhone}
-                  onChange={(e) => setInvoice({ ...invoice, companyPhone: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Invoice Header */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label className="text-cyan-300">Invoice Number *</Label>
+              <Input
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                className="bg-slate-800/50 border-cyan-500/30 text-white"
+              />
+            </div>
+            <div>
+              <Label className="text-cyan-300">Invoice Date *</Label>
+              <Input
+                type="date"
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                className="bg-slate-800/50 border-cyan-500/30 text-white"
+              />
+            </div>
+            <div>
+              <Label className="text-cyan-300">Due Date</Label>
+              <Input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="bg-slate-800/50 border-cyan-500/30 text-white"
+              />
+            </div>
+          </div>
 
-          {/* Customer Details */}
+          {/* Invoice Items */}
           <Card className="glass-card border-cyan-500/20">
-            <CardHeader>
-              <CardTitle className="text-cyan-100 text-lg">Customer Details</CardTitle>
-            </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-cyan-100">Name</Label>
-                <Input
-                  value={invoice.customerName}
-                  onChange={(e) => setInvoice({ ...invoice, customerName: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                />
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-cyan-100">Invoice Items</h3>
+                <Button onClick={addItem} size="sm" className="bg-cyan-500">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Item
+                </Button>
               </div>
-              <div>
-                <Label className="text-cyan-100">GSTIN (Optional)</Label>
-                <Input
-                  value={invoice.customerGSTIN || ''}
-                  onChange={(e) => setInvoice({ ...invoice, customerGSTIN: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Label className="text-cyan-100">Address</Label>
-                <Textarea
-                  value={invoice.customerAddress}
-                  onChange={(e) => setInvoice({ ...invoice, customerAddress: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                  rows={2}
-                />
-              </div>
-              <div>
-                <Label className="text-cyan-100">Email</Label>
-                <Input
-                  value={invoice.customerEmail}
-                  onChange={(e) => setInvoice({ ...invoice, customerEmail: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                />
-              </div>
-              <div>
-                <Label className="text-cyan-100">Phone</Label>
-                <Input
-                  value={invoice.customerPhone}
-                  onChange={(e) => setInvoice({ ...invoice, customerPhone: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                />
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Invoice Details */}
-          <Card className="glass-card border-cyan-500/20">
-            <CardHeader>
-              <CardTitle className="text-cyan-100 text-lg">Invoice Details</CardTitle>
-            </CardHeader>
-            <CardContent className="grid md:grid-cols-3 gap-4">
-              <div>
-                <Label className="text-cyan-100">Invoice Date</Label>
-                <Input
-                  type="date"
-                  value={invoice.invoiceDate.split('T')[0]}
-                  onChange={(e) => setInvoice({ ...invoice, invoiceDate: new Date(e.target.value).toISOString() })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                />
-              </div>
-              <div>
-                <Label className="text-cyan-100">GST Rate (%)</Label>
-                <Select
-                  value={invoice.gstRate.toString()}
-                  onValueChange={(value) => {
-                    const newInvoice = { ...invoice, gstRate: parseFloat(value) };
-                    setInvoice(invoiceUtils.updateInvoiceCalculations(newInvoice));
-                  }}
-                >
-                  <SelectTrigger className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5%</SelectItem>
-                    <SelectItem value="12">12%</SelectItem>
-                    <SelectItem value="18">18%</SelectItem>
-                    <SelectItem value="28">28%</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="interstate"
-                    checked={invoice.isInterState}
-                    onCheckedChange={(checked) => {
-                      const newInvoice = { ...invoice, isInterState: checked as boolean };
-                      setInvoice(invoiceUtils.updateInvoiceCalculations(newInvoice));
-                    }}
-                    className="border-cyan-500/50"
-                  />
-                  <Label htmlFor="interstate" className="text-cyan-100 cursor-pointer">
-                    Inter-State (IGST)
-                  </Label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Items */}
-          <Card className="glass-card border-cyan-500/20">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-cyan-100 text-lg">Items</CardTitle>
-              <Button
-                onClick={handleAddItem}
-                size="sm"
-                className="bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white border-0"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Item
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {invoice.items.map((item, index) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="grid md:grid-cols-6 gap-2 p-4 bg-cyan-500/5 border border-cyan-500/20 rounded-xl"
-                  >
-                    <div className="md:col-span-2">
-                      <Label className="text-cyan-100 text-xs">Product Name</Label>
+              {/* Items Table */}
+              <div className="space-y-3">
+                {items.map((item, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-start bg-slate-800/30 p-3 rounded-lg">
+                    <div className="col-span-5">
+                      <Label className="text-xs text-slate-400">Description</Label>
                       <Input
-                        value={item.productName}
-                        onChange={(e) => {
-                          const updatedItems = [...invoice.items];
-                          updatedItems[index].productName = e.target.value;
-                          setInvoice({ ...invoice, items: updatedItems });
-                        }}
-                        className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 text-sm"
+                        value={item.description}
+                        onChange={(e) => updateItem(index, 'description', e.target.value)}
+                        placeholder="Product/Service description"
+                        className="bg-slate-900/50 border-cyan-500/20 text-white text-sm"
                       />
                     </div>
-                    <div>
-                      <Label className="text-cyan-100 text-xs">Quantity</Label>
+                    <div className="col-span-2">
+                      <Label className="text-xs text-slate-400">Quantity</Label>
                       <Input
                         type="number"
                         value={item.quantity}
-                        onChange={(e) => handleUpdateItem(index, 'quantity', e.target.value)}
-                        className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 text-sm"
+                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                        className="bg-slate-900/50 border-cyan-500/20 text-white text-sm"
                       />
                     </div>
-                    <div>
-                      <Label className="text-cyan-100 text-xs">Unit Price</Label>
+                    <div className="col-span-2">
+                      <Label className="text-xs text-slate-400">Rate (₹)</Label>
                       <Input
                         type="number"
-                        step="0.01"
-                        value={item.unitPrice}
-                        onChange={(e) => handleUpdateItem(index, 'unitPrice', e.target.value)}
-                        className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 text-sm"
+                        value={item.rate}
+                        onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
+                        className="bg-slate-900/50 border-cyan-500/20 text-white text-sm"
                       />
                     </div>
-                    <div>
-                      <Label className="text-cyan-100 text-xs">Total</Label>
+                    <div className="col-span-2">
+                      <Label className="text-xs text-slate-400">Amount (₹)</Label>
                       <Input
-                        value={`₹${item.total.toFixed(2)}`}
-                        readOnly
-                        className="bg-[#0f172a]/80 border-cyan-500/30 text-teal-400 text-sm font-bold"
+                        type="number"
+                        value={item.amount}
+                        disabled
+                        className="bg-slate-900/50 border-cyan-500/20 text-white text-sm font-bold"
                       />
                     </div>
-                    <div className="flex items-end">
+                    <div className="col-span-1 pt-5">
                       <Button
-                        onClick={() => handleRemoveItem(index)}
                         size="sm"
                         variant="ghost"
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/20 w-full"
+                        onClick={() => removeItem(index)}
+                        disabled={items.length === 1}
+                        className="text-red-400 hover:bg-red-500/10"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          {/* Pricing Summary */}
+          {/* Calculations */}
           <Card className="glass-card border-cyan-500/20">
-            <CardHeader>
-              <CardTitle className="text-cyan-100 text-lg">Pricing Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-slate-300">
-                <span>Subtotal:</span>
-                <span>₹{invoice.subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-slate-300">
-                <span>Taxable Amount:</span>
-                <span>₹{invoice.taxableAmount.toFixed(2)}</span>
-              </div>
-              {!invoice.isInterState ? (
-                <>
-                  <div className="flex justify-between text-slate-300">
-                    <span>CGST ({invoice.gstRate / 2}%):</span>
-                    <span>₹{invoice.cgst.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span>SGST ({invoice.gstRate / 2}%):</span>
-                    <span>₹{invoice.sgst.toFixed(2)}</span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex justify-between text-slate-300">
-                  <span>IGST ({invoice.gstRate}%):</span>
-                  <span>₹{invoice.igst.toFixed(2)}</span>
+            <CardContent className="p-4 space-y-3">
+              <h3 className="text-lg font-bold text-cyan-100 mb-3">Calculations</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-cyan-300">Tax Rate (%)</Label>
+                  <Input
+                    type="number"
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                    className="bg-slate-800/50 border-cyan-500/30 text-white"
+                  />
                 </div>
-              )}
-              <div className="flex justify-between text-slate-300">
-                <Label className="text-cyan-100">Shipping Charges</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={invoice.shippingCharges}
-                  onChange={(e) => {
-                    const charges = parseFloat(e.target.value) || 0;
-                    setInvoice({ ...invoice, shippingCharges: charges, grandTotal: invoice.subtotal - invoice.discount + charges });
-                  }}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 w-32 text-right"
-                />
+                <div>
+                  <Label className="text-cyan-300">Shipping Charge (₹)</Label>
+                  <Input
+                    type="number"
+                    value={shippingCharge}
+                    onChange={(e) => setShippingCharge(parseFloat(e.target.value) || 0)}
+                    className="bg-slate-800/50 border-cyan-500/30 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-cyan-300">Discount (₹)</Label>
+                  <Input
+                    type="number"
+                    value={discount}
+                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                    className="bg-slate-800/50 border-cyan-500/30 text-white"
+                  />
+                </div>
               </div>
-              <div className="flex justify-between text-xl font-bold text-cyan-100 pt-3 border-t border-cyan-500/20">
-                <span>Grand Total:</span>
-                <span>₹{invoice.grandTotal.toFixed(2)}</span>
+
+              {/* Summary */}
+              <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 space-y-2 mt-4">
+                <div className="flex justify-between text-slate-300">
+                  <span>Subtotal:</span>
+                  <span className="font-mono">₹{calculateSubtotal().toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>Tax ({taxRate}%):</span>
+                  <span className="font-mono">₹{calculateTax().toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>Shipping:</span>
+                  <span className="font-mono">₹{shippingCharge.toLocaleString('en-IN')}</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-green-400">
+                    <span>Discount:</span>
+                    <span className="font-mono">-₹{discount.toLocaleString('en-IN')}</span>
+                  </div>
+                )}
+                <div className="border-t border-cyan-500/30 pt-2 flex justify-between text-xl font-bold text-cyan-100">
+                  <span>Total:</span>
+                  <span className="font-mono">₹{calculateTotal().toLocaleString('en-IN')}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Notes */}
-          <Card className="glass-card border-cyan-500/20">
-            <CardHeader>
-              <CardTitle className="text-cyan-100 text-lg">Additional Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-cyan-100">Notes</Label>
-                <Textarea
-                  value={invoice.notes || ''}
-                  onChange={(e) => setInvoice({ ...invoice, notes: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                  rows={2}
-                />
-              </div>
-              <div>
-                <Label className="text-cyan-100">Terms & Conditions</Label>
-                <Textarea
-                  value={invoice.termsAndConditions || ''}
-                  onChange={(e) => setInvoice({ ...invoice, termsAndConditions: e.target.value })}
-                  className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Notes & Terms */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-cyan-300">Notes</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Additional notes for the customer..."
+                className="bg-slate-800/50 border-cyan-500/30 text-white h-24"
+              />
+            </div>
+            <div>
+              <Label className="text-cyan-300">Terms & Conditions</Label>
+              <Textarea
+                value={termsAndConditions}
+                onChange={(e) => setTermsAndConditions(e.target.value)}
+                placeholder="Terms and conditions..."
+                className="bg-slate-800/50 border-cyan-500/30 text-white h-24"
+              />
+            </div>
+          </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
-            <Button
-              onClick={handleSave}
-              className="flex-1 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button border-0 py-6"
-            >
-              <Save className="w-5 h-5 mr-2" />
+          <div className="flex gap-3 pt-2">
+            <Button onClick={onClose} variant="outline" className="flex-1 border-slate-700 text-slate-300">
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button onClick={handleSave} className="flex-1 bg-gradient-to-r from-cyan-500 to-teal-500 text-white">
+              <Save className="w-4 h-4 mr-2" />
               Save Invoice
             </Button>
-            <Button
-              onClick={handleDownload}
-              className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white glow-button border-0 py-6"
-            >
-              <Download className="w-5 h-5 mr-2" />
-              Download PDF
-            </Button>
+            {onDownload && (
+              <Button onClick={handleDownload} className="flex-1 bg-gradient-to-r from-cyan-500 to-teal-500 text-white">
+                <Save className="w-4 h-4 mr-2" />
+                Download Invoice
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

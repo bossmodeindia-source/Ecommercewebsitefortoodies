@@ -7,7 +7,10 @@ import { toast } from 'sonner@2.0.3';
 import { designDB, DesignData } from '../utils/indexedDB';
 import { storageUtils } from '../utils/storage';
 import { DesignCheckoutModal } from './DesignCheckoutModal';
-import { submitDesignToFigma, downloadDesignFile } from '../utils/figmaSubmission';
+import { DesignRenderer, exportDesignFromCoordinates } from './design-export';
+import { submitDesignToFigma } from '../utils/figmaSubmission';
+import { designsApi } from '../utils/supabaseApi';
+import { EnhancedPaymentDialog } from './EnhancedPaymentDialog';
 
 interface StudioMyCustomDesignsProps {
   onEditDesign?: (designId: string) => void;
@@ -18,6 +21,7 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
   const [loading, setLoading] = useState(true);
   const [selectedDesign, setSelectedDesign] = useState<DesignData | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   const currentUser = storageUtils.getCurrentUser();
 
@@ -29,15 +33,57 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
     try {
       if (!currentUser) return;
       
-      const userDesigns = await designDB.getUserDesigns(currentUser.id);
+      // ✅ NOW LOADING FROM SUPABASE instead of IndexedDB
+      const supabaseDesigns = await designsApi.getMy();
+      
+      // Transform Supabase data to match component expectations
+      const transformedDesigns: DesignData[] = supabaseDesigns.map((sd: any) => {
+        const designUploads = typeof sd.design_uploads === 'string' 
+          ? JSON.parse(sd.design_uploads) 
+          : sd.design_uploads || {};
+        
+        return {
+          id: sd.id,
+          userId: sd.user_id,
+          productId: sd.product_id,
+          productName: sd.product_name,
+          color: sd.color,
+          size: sd.size,
+          fabric: sd.fabric,
+          printingMethod: sd.printing_method,
+          printingCost: Number(sd.printing_cost || 0),
+          basePrice: Number(sd.product_price || 0),
+          timestamp: new Date(sd.created_at).getTime(),
+          customerName: sd.user_name,
+          userEmail: sd.user_email,
+          userName: sd.user_name,
+          designLayers: designUploads.layers || [],
+          designUploads: designUploads.layers || [],
+          modelUrl: designUploads.originalMockup || sd.design_snapshot || '',
+          highResolutionExport: sd.canvas_snapshot || sd.thumbnail_url,
+          previewSnapshot: sd.thumbnail_url || sd.design_snapshot,
+          paymentStatus: sd.payment_status || 'unpaid',
+          approvalStatus: sd.approval_status || 'pending',
+          approvalDate: sd.approval_date,
+          approvalNotes: sd.approval_notes,
+          reviewedBy: sd.reviewed_by,
+          adminSetPrice: sd.admin_set_price ? Number(sd.admin_set_price) : undefined,
+          neckLabel: sd.neck_label_text,
+          thankYouCard: sd.thank_you_card_text,
+          box: sd.custom_box_text,
+          isLocked: sd.payment_status === 'paid'
+        } as DesignData;
+      });
       
       // Sort by timestamp (newest first)
-      userDesigns.sort((a, b) => b.timestamp - a.timestamp);
+      transformedDesigns.sort((a, b) => b.timestamp - a.timestamp);
       
-      setDesigns(userDesigns);
+      setDesigns(transformedDesigns);
+      console.log('📦 Loaded designs from Supabase:', transformedDesigns.length);
     } catch (error) {
-      console.error('Failed to load designs:', error);
-      toast.error('Failed to load designs');
+      console.error('Failed to load designs from Supabase:', error);
+      // Silently fall back to empty designs - don't show error toast
+      setDesigns([]);
     } finally {
       setLoading(false);
     }
@@ -47,7 +93,8 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
     if (!confirm('Are you sure you want to delete this design?')) return;
     
     try {
-      await designDB.deleteDesign(designId);
+      // Delete from Supabase
+      await designsApi.delete(designId);
       setDesigns(prev => prev.filter(d => d.id !== designId));
       toast.success('Design deleted');
     } catch (error) {
@@ -57,66 +104,87 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
   };
 
   const handleBuyNow = (design: DesignData) => {
+    // Check approval status first
+    if (design.approvalStatus === 'pending') {
+      toast.info('Design is awaiting admin approval', {
+        description: 'You will be notified once reviewed'
+      });
+      return;
+    }
+    
+    if (design.approvalStatus === 'rejected') {
+      toast.error('Design was rejected by admin', {
+        description: design.approvalNotes || 'Please check review notes'
+      });
+      return;
+    }
+    
     if (design.isLocked) {
       toast.error('This design has already been purchased');
       return;
     }
     
-    setSelectedDesign(design);
-    setShowCheckout(true);
+    // Only allow payment for approved designs
+    if (design.approvalStatus === 'approved') {
+      setSelectedDesign(design);
+      setShowPaymentDialog(true);
+    }
   };
 
   const handlePaymentSuccess = async (paymentDetails: any) => {
     if (!selectedDesign || !currentUser) return;
 
     try {
-      // Get customer name and email
-      const customerName = currentUser.name || currentUser.mobile;
-      const customerEmail = currentUser.email || `${currentUser.mobile}@toodies.com`;
-
-      // Submit design to Figma
-      const figmaResult = await submitDesignToFigma(selectedDesign, {
-        orderId: paymentDetails.orderId,
-        paymentId: paymentDetails.paymentId,
-        customerName,
-        customerEmail,
-        customerPhone: paymentDetails.phone,
-        deliveryAddress: paymentDetails.deliveryAddress
+      // Update design payment status in Supabase
+      await designsApi.update(selectedDesign.id, {
+        payment_status: 'paid',
+        payment_date: new Date().toISOString(),
+        payment_method: paymentDetails.paymentMethod,
+        payment_id: paymentDetails.paymentId
       });
 
-      if (figmaResult.success) {
-        // Update design status in database
-        await designDB.updateDesignStatus(selectedDesign.id, 'paid', {
-          isLocked: true,
-          orderId: paymentDetails.orderId,
-          paymentId: paymentDetails.paymentId,
-          figmaFileUrl: figmaResult.fileUrl
-        });
+      // Refresh designs
+      await loadDesigns();
 
-        // Refresh designs
-        await loadDesigns();
-
-        toast.success('Order placed successfully!', {
-          description: `Order ID: ${paymentDetails.orderId}`
-        });
-      } else {
-        toast.error('Payment successful but Figma submission failed', {
-          description: 'Please contact support with your order ID'
-        });
-      }
+      toast.success('Payment successful!', {
+        description: 'Your order has been placed'
+      });
     } catch (error) {
       console.error('Payment processing error:', error);
-      toast.error('Failed to process order');
+      toast.error('Failed to process payment');
     } finally {
-      setShowCheckout(false);
+      setShowPaymentDialog(false);
       setSelectedDesign(null);
     }
   };
 
-  const handleDownload = (design: DesignData) => {
-    const fileName = `${design.productName}_${design.color}_${design.size}_${design.id}`;
-    downloadDesignFile(design.fullResolutionSnapshot, fileName);
-    toast.success('Design downloaded!');
+  const handleDownload = async (design: DesignData) => {
+    try {
+      toast('🎨 Generating high-resolution export...', { duration: 2000 });
+      
+      // Generate 2400x2400 PNG from coordinates
+      const dataUrl = await exportDesignFromCoordinates(
+        design.modelUrl,
+        design.designLayers,
+        2400
+      );
+      
+      // Download the file
+      const fileName = `${design.productName}_${design.color}_${design.size}_${design.id}`;
+      const link = document.createElement('a');
+      link.download = `${fileName}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Design downloaded!', {
+        description: '2400x2400 PNG ready for printing'
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Failed to generate export');
+    }
   };
 
   if (loading) {
@@ -149,13 +217,16 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
               exit={{ opacity: 0, scale: 0.9 }}
             >
               <Card className="glass-card border-cyan-500/20 overflow-hidden hover:border-cyan-500/40 transition-all">
-                {/* Design Preview */}
-                <div className="relative aspect-square bg-slate-900/50 group">
-                  <img
-                    src={design.previewSnapshot || design.fullResolutionSnapshot}
-                    alt={design.name}
-                    className="w-full h-full object-cover"
-                  />
+                {/* Design Preview - Rendered from coordinates */}
+                <div className="relative aspect-square bg-slate-900/50 group overflow-hidden">
+                  <div className="flex items-center justify-center w-full h-full">
+                    <DesignRenderer
+                      modelUrl={design.modelUrl}
+                      layers={design.designLayers}
+                      canvasSize={300}
+                      className="w-full h-full"
+                    />
+                  </div>
                   
                   {/* Status Badge */}
                   {design.paymentStatus === 'paid' && (
@@ -164,15 +235,34 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
                     </div>
                   )}
                   
-                  {design.isLocked && (
-                    <div className="absolute top-2 left-2 px-3 py-1 bg-purple-500/90 backdrop-blur-sm rounded-full text-white text-xs font-bold">
-                      🔒 MERGED
+                  {/* Approval Status Badge */}
+                  {design.paymentStatus === 'unpaid' && design.approvalStatus === 'pending' && (
+                    <div className="absolute top-2 right-2 px-3 py-1 bg-yellow-500/90 backdrop-blur-sm rounded-full text-white text-xs font-bold">
+                      ⏳ PENDING APPROVAL
                     </div>
                   )}
                   
-                  {/* Info badge showing it's a merged image */}
+                  {design.paymentStatus === 'unpaid' && design.approvalStatus === 'approved' && (
+                    <div className="absolute top-2 right-2 px-3 py-1 bg-green-500/90 backdrop-blur-sm rounded-full text-white text-xs font-bold">
+                      ✓ APPROVED
+                    </div>
+                  )}
+                  
+                  {design.paymentStatus === 'unpaid' && design.approvalStatus === 'rejected' && (
+                    <div className="absolute top-2 right-2 px-3 py-1 bg-red-500/90 backdrop-blur-sm rounded-full text-white text-xs font-bold">
+                      ✗ REJECTED
+                    </div>
+                  )}
+                  
+                  {design.isLocked && (
+                    <div className="absolute top-2 left-2 px-3 py-1 bg-purple-500/90 backdrop-blur-sm rounded-full text-white text-xs font-bold">
+                      🔒 LOCKED
+                    </div>
+                  )}
+                  
+                  {/* Info badge */}
                   <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 backdrop-blur-sm rounded text-white text-xs">
-                    Model + {design.designLayers.length} Layer{design.designLayers.length > 1 ? 's' : ''}
+                    {design.designLayers.length} Layer{design.designLayers.length > 1 ? 's' : ''}
                   </div>
                   
                   {/* Hover Actions */}
@@ -212,15 +302,30 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
                   </div>
 
                   {/* Price */}
-                  <div className="mb-3 p-2 bg-slate-900/50 rounded-lg">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-400">Total Price:</span>
-                      <span className="text-cyan-400 font-bold text-lg">
-                        ₹{design.basePrice + design.printingCost}
-                      </span>
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-xs text-slate-500">Price</p>
+                      <p className="text-lg font-bold text-[#d4af37]">
+                        ₹{(design.adminSetPrice || (design.basePrice + design.printingCost)).toLocaleString()}
+                      </p>
+                      {design.adminSetPrice && design.adminSetPrice !== (design.basePrice + design.printingCost) && (
+                        <>
+                          <p className="text-xs text-slate-500 line-through">
+                            ₹{(design.basePrice + design.printingCost).toLocaleString()}
+                          </p>
+                          <p className="text-[10px] text-green-400 font-bold mt-0.5">
+                            {design.adminSetPrice < (design.basePrice + design.printingCost) 
+                              ? '✓ Admin Discount Applied' 
+                              : 'Admin Price Updated'}
+                          </p>
+                        </>
+                      )}
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">
-                      Base: ₹{design.basePrice} + Printing: ₹{design.printingCost}
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500">Status</p>
+                      <p className="text-sm font-medium text-cyan-400">
+                        {design.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                      </p>
                     </div>
                   </div>
 
@@ -235,6 +340,14 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
                       minute: '2-digit'
                     })}
                   </div>
+
+                  {/* Rejection Notes */}
+                  {design.approvalStatus === 'rejected' && design.approvalNotes && (
+                    <div className="mb-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                      <p className="text-xs text-red-400 font-semibold mb-1">Admin Review Notes:</p>
+                      <p className="text-xs text-white">{design.approvalNotes}</p>
+                    </div>
+                  )}
 
                   {/* Actions */}
                   {design.paymentStatus === 'unpaid' ? (
@@ -328,6 +441,29 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
             productName: selectedDesign.productName,
             productPrice: selectedDesign.basePrice,
             customizationCost: selectedDesign.printingCost,
+            adminSetPrice: selectedDesign.adminSetPrice, // Pass admin price
+            designSnapshot: selectedDesign.fullResolutionSnapshot,
+            color: selectedDesign.color,
+            size: selectedDesign.size,
+            fabric: selectedDesign.fabric
+          }}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {/* Payment Dialog */}
+      {selectedDesign && (
+        <EnhancedPaymentDialog
+          open={showPaymentDialog}
+          onClose={() => {
+            setShowPaymentDialog(false);
+            setSelectedDesign(null);
+          }}
+          designData={{
+            productName: selectedDesign.productName,
+            productPrice: selectedDesign.basePrice,
+            customizationCost: selectedDesign.printingCost,
+            adminSetPrice: selectedDesign.adminSetPrice, // Pass admin price
             designSnapshot: selectedDesign.fullResolutionSnapshot,
             color: selectedDesign.color,
             size: selectedDesign.size,

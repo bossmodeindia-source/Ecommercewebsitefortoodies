@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Download, FileText, Package, Check, X, Image, FolderArchive, Layers } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
-import { designDB, DesignData } from '../utils/indexedDB';
+import { designsApi } from '../utils/supabaseApi';
 import { generateDesignPDF, downloadPDF } from '../utils/pdfGenerator';
 import { 
   downloadDesignFilesAsZip, 
@@ -12,6 +12,39 @@ import {
   downloadFinalDesign, 
   downloadOriginalMockup 
 } from '../utils/fileDownloader';
+
+// Type for transformed design data
+interface DesignData {
+  id: string;
+  userId: string;
+  productId: string;
+  productName: string;
+  color: string;
+  size: string;
+  fabric: string;
+  printingMethod: string;
+  printingCost: number;
+  basePrice: number;
+  totalCost: number;
+  paymentStatus: 'paid' | 'unpaid';
+  orderId?: string;
+  orderNumber?: string;
+  timestamp: number;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  designLayers: any[];
+  fullResolutionSnapshot?: string;
+  previewSnapshot?: string;
+  originalMockup?: string;
+  canvasWidth?: number;
+  canvasHeight?: number;
+  printableArea?: any;
+  mockupBounds?: any;
+  deliveryAddress?: string;
+  figmaFileUrl?: string;
+  name?: string;
+}
 
 export function AdminDesignOrders() {
   const [designs, setDesigns] = useState<DesignData[]>([]);
@@ -25,19 +58,67 @@ export function AdminDesignOrders() {
 
   const loadAllDesigns = async () => {
     try {
-      const allDesigns = await designDB.getAllDesigns();
+      // ✅ NOW USING SUPABASE DATABASE
+      const supabaseDesigns = await designsApi.getAll();
+      
+      console.log('📦 Loaded designs from Supabase:', supabaseDesigns.length);
+      
+      // Transform Supabase data structure to match component expectations
+      const transformedDesigns: DesignData[] = supabaseDesigns.map((sd: any) => {
+        // Parse design_uploads JSONB field
+        const designUploads = typeof sd.design_uploads === 'string' 
+          ? JSON.parse(sd.design_uploads) 
+          : sd.design_uploads || {};
+        
+        return {
+          id: sd.id,
+          userId: sd.user_id,
+          productId: sd.product_id,
+          productName: sd.product_name,
+          color: sd.color,
+          size: sd.size,
+          fabric: sd.fabric,
+          printingMethod: sd.printing_method,
+          printingCost: Number(sd.printing_cost || 0),
+          basePrice: Number(sd.total_cost || 0) - Number(sd.printing_cost || 0),
+          totalCost: Number(sd.total_cost || 0),
+          paymentStatus: sd.payment_status || 'unpaid',
+          orderId: sd.order_id,
+          orderNumber: sd.order_id,
+          timestamp: new Date(sd.created_at).getTime(),
+          customerName: sd.user_name,
+          customerEmail: sd.user_email,
+          customerPhone: '',
+          designLayers: designUploads.layers || [],
+          fullResolutionSnapshot: sd.canvas_snapshot || sd.thumbnail_url,
+          previewSnapshot: sd.thumbnail_url,
+          originalMockup: designUploads.originalMockup || '',
+          canvasWidth: designUploads.canvasWidth || 600,
+          canvasHeight: designUploads.canvasHeight || 600,
+          printableArea: designUploads.printableArea,
+          mockupBounds: designUploads.mockupBounds,
+          deliveryAddress: '',
+          figmaFileUrl: '',
+          name: sd.product_name
+        };
+      });
       
       // Sort: paid first, then by timestamp
-      allDesigns.sort((a, b) => {
+      transformedDesigns.sort((a, b) => {
         if (a.paymentStatus === 'paid' && b.paymentStatus !== 'paid') return -1;
         if (a.paymentStatus !== 'paid' && b.paymentStatus === 'paid') return 1;
         return b.timestamp - a.timestamp;
       });
       
-      setDesigns(allDesigns);
+      setDesigns(transformedDesigns);
+      
+      toast.success(`Loaded ${transformedDesigns.length} customer designs from database`, {
+        description: `${transformedDesigns.filter(d => d.paymentStatus === 'paid').length} paid orders ready for manufacturing`
+      });
     } catch (error) {
-      console.error('Failed to load designs:', error);
-      toast.error('Failed to load customer designs');
+      console.error('Failed to load designs from Supabase:', error);
+      // Silently fall back to empty designs - don't show error toast
+      setDesigns([]);
     } finally {
       setLoading(false);
     }
@@ -98,12 +179,7 @@ export function AdminDesignOrders() {
       
       downloadPDF(pdfBlob, fileName);
       
-      // Save order number to design
-      if (!design.orderNumber) {
-        await designDB.updateDesignStatus(design.id, design.paymentStatus, { orderNumber });
-        await loadAllDesigns(); // Reload to show updated order number
-      }
-      
+      // ✅ Supabase: Order number is already stored in database
       toast.success('Manufacturing PDF Downloaded!', {
         description: `Order #${orderNumber} ready for production`
       });

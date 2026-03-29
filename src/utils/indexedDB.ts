@@ -10,47 +10,30 @@ interface DesignData {
   name: string;
   timestamp: number;
   
-  // High-quality uncompressed data
-  fullResolutionSnapshot: string; // PNG base64 - full quality
-  originalMockup: string; // Original mockup image
+  // NO SCREENSHOTS - Only coordinates!
+  modelUrl: string; // URL of the model/mockup image
   designLayers: Array<{
     id: string;
-    originalImage: string; // PNG base64 - no compression
-    // Absolute canvas coordinates
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    rotation: number;
-    scaleX: number;
-    scaleY: number;
-    opacity: number;
-    blendMode?: string;
-    // Relative to mockup/printable area
-    relativeX?: number; // % from left
-    relativeY?: number; // % from top
-    relativeWidth?: number; // % of printable width
-    relativeHeight?: number; // % of printable height
+    imageUrl: string; // Design layer image (base64 or URL)
+    
+    // NORMALIZED COORDINATES (0-100%)
+    normalizedX: number;      // X position as % of canvas
+    normalizedY: number;      // Y position as % of canvas
+    normalizedWidth: number;  // Width as % of canvas
+    normalizedHeight: number; // Height as % of canvas
+    rotation: number;         // Rotation in degrees
+    
+    // Legacy absolute coordinates (fallback)
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    
     // Printing info
     printingMethodId: string;
     printingMethodName?: string;
     printingCost?: number;
   }>;
-  
-  // Mockup positioning metadata
-  mockupBounds?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  
-  printableArea?: {
-    x: number; // Left edge of printable area on canvas
-    y: number; // Top edge of printable area on canvas
-    width: number; // Width of printable area
-    height: number; // Height of printable area
-  };
   
   // Product details
   productName: string;
@@ -61,15 +44,14 @@ interface DesignData {
   printingCost: number;
   basePrice: number;
   
-  // Canvas metadata for perfect recreation
-  canvasWidth: number;
-  canvasHeight: number;
-  canvasScale: number;
+  // Canvas metadata
+  canvasWidth: number;  // Standard: 600
+  canvasHeight: number; // Standard: 600
   
   // Status & tracking
   paymentStatus: 'unpaid' | 'paid' | 'submitted';
   orderId?: string;
-  orderNumber?: string; // Human-readable order number
+  orderNumber?: string;
   paymentId?: string;
   figmaFileUrl?: string;
   isLocked: boolean;
@@ -78,7 +60,14 @@ interface DesignData {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
-  deliveryAddress?: string;
+  
+  // APPROVAL WORKFLOW
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  approvalDate?: string;
+  approvalNotes?: string;
+  reviewedBy?: string;
+  adminSetPrice?: number; // Admin can override the calculated price
+  calculatedPrice?: number; // Store the original calculated price for reference
 }
 
 class DesignDatabase {
@@ -172,6 +161,19 @@ class DesignDatabase {
     }
 
     await this.saveDesign(design);
+  }
+
+  async updateDesign(updatedDesign: DesignData): Promise<void> {
+    if (!this.db) await this.init();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put(updatedDesign);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async getAllDesigns(): Promise<DesignData[]> {

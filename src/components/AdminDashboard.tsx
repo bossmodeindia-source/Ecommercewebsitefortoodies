@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Package, Plus, Edit, Trash2, LogOut, ShoppingBag, Settings, Upload, X, Ticket, Users, Tag, MessageSquare, Bell, LayoutDashboard, TrendingUp, AlertTriangle, DollarSign, HeadphonesIcon, Building2, Palette } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, LogOut, ShoppingBag, Settings, Upload, X, Ticket, Users, Tag, MessageSquare, Bell, LayoutDashboard, TrendingUp, AlertTriangle, DollarSign, HeadphonesIcon, Building2, Palette, CheckCircle, Smartphone, Gift, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Product, ProductVariation } from '../types';
 import { storageUtils } from '../utils/storage';
@@ -20,14 +20,19 @@ import { CustomerManagement } from './CustomerManagement';
 import { MessageTemplateManagement } from './MessageTemplateManagement';
 import { PopupManagement } from './PopupManagement';
 import { HelpCenterManagement } from './HelpCenterManagement';
+import { GiftingManagement } from './GiftingManagement';
 import { BusinessSettings } from './BusinessSettings';
 import { DesignIntegrationInfo } from './DesignIntegrationInfo';
 import { CustomerDesignsManagement } from './CustomerDesignsManagement';
 import { AdminDesignOrders } from './AdminDesignOrders';
+import { AdminDesignApproval } from './AdminDesignApproval';
 import { ThreeDModelManager } from './ThreeDModelManager';
 import { ThreeDWebsiteSettings } from './ThreeDWebsiteSettings';
 import { PrintingMethodsManagement } from './PrintingMethodsManagement';
+import { BillingCalculationSettings } from './BillingCalculationSettings';
+import { SupabasePhoneAuthSettings } from './SupabasePhoneAuthSettings';
 import { ProductModelStatus } from './ProductModelStatus';
+import { AIIntegrationSettings } from './AIIntegrationSettings';
 import { toast } from 'sonner@2.0.3';
 import { Badge } from './ui/badge';
 
@@ -73,6 +78,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [newPrintMethod, setNewPrintMethod] = useState('');
   const [newImageUrl, setNewImageUrl] = useState('');
 
+  // Payment settings
+  const [allowPrepaid, setAllowPrepaid] = useState(true);
+  const [allowPostpaid, setAllowPostpaid] = useState(true);
+  const [partialPaymentPercentage, setPartialPaymentPercentage] = useState('30');
+  const [codExtraCharge, setCodExtraCharge] = useState('50');
+  const [customDesignAllowPostpaid, setCustomDesignAllowPostpaid] = useState(false);
+  const [customDesignPartialPaymentPercentage, setCustomDesignPartialPaymentPercentage] = useState('100');
+
   useEffect(() => {
     loadProducts();
     loadStats();
@@ -111,6 +124,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     setVariations([]);
     setPrintingMethods([]);
     setEditingProduct(null);
+    setAllowPrepaid(true);
+    setAllowPostpaid(true);
+    setPartialPaymentPercentage('30');
+    setCodExtraCharge('50');
+    setCustomDesignAllowPostpaid(false);
+    setCustomDesignPartialPaymentPercentage('100');
   };
 
   const handleAddVariation = () => {
@@ -259,12 +278,35 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     onLogout();
   };
 
+  const navTabs = [
+    { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { value: 'products', label: 'Catalog', icon: Package },
+    { value: 'orders', label: 'Orders', icon: ShoppingBag },
+    { value: 'customers', label: 'Customers', icon: Users },
+    { value: 'categories', label: 'Categories', icon: Tag },
+    { value: 'coupons', label: 'Coupons', icon: Ticket },
+    { value: 'printingmethods', label: 'Printing', icon: Palette },
+    { value: 'customerdesigns', label: 'Designs', icon: Palette },
+    { value: 'designapproval', label: 'Approval', icon: CheckCircle },
+    { value: 'designorders', label: 'D-Orders', icon: Package },
+    { value: '3dmodels', label: '2D Models', icon: Palette },
+    { value: '3dwebsite', label: '2D Site', icon: Palette },
+    { value: '3dintegration', label: 'Integration', icon: Palette },
+    { value: 'billingsettings', label: 'Billing', icon: DollarSign },
+    { value: 'mobileverification', label: 'Mobile', icon: Smartphone },
+    { value: 'popups', label: 'Popups', icon: Bell },
+    { value: 'messages', label: 'Messages', icon: MessageSquare },
+    { value: 'helpcenter', label: 'Support', icon: HeadphonesIcon },
+    { value: 'gifting', label: 'Gifting', icon: Gift },
+    { value: 'business', label: 'Enterprise', icon: Building2 },
+    { value: 'settings', label: 'Security', icon: Settings },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#0a0e1a] relative overflow-hidden">
-      {/* Animated background elements */}
+    <div className="min-h-screen bg-black relative overflow-hidden selection:bg-[#d4af37]/30">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl animate-pulse-glow" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-[#d4af37]/5 rounded-full blur-3xl animate-pulse-glow" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#d4af37]/3 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: '1s' }} />
       </div>
 
       <div className="max-w-7xl mx-auto p-6 relative z-10">
@@ -274,8 +316,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           className="flex justify-between items-center mb-8"
         >
           <div>
-            <h1 className="text-3xl font-bold text-cyan-100 glow-text">Admin Dashboard</h1>
-            <p className="text-slate-400">Manage Toodies Products & Orders</p>
+            <h1 className="text-3xl font-bold text-white glow-text tracking-wider uppercase">Admin Studio</h1>
+            <p className="text-slate-500 font-light">Bespoke Enterprise Management</p>
           </div>
           <div className="flex gap-4">
             <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
@@ -283,39 +325,39 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               if (!open) resetForm();
             }}>
               <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button border-0">
+                <Button className="glow-button font-bold px-6 rounded-xl border-0">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Product
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto glass-card border-cyan-500/30 bg-[#0f172a]">
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto glass-card border-[#d4af37]/30 bg-black">
                 <DialogHeader>
-                  <DialogTitle className="text-cyan-100">
+                  <DialogTitle className="text-white text-2xl font-bold tracking-tight">
                     {editingProduct ? 'Edit Product' : 'Add New Product'}
                   </DialogTitle>
-                  <DialogDescription className="text-slate-400">
-                    {editingProduct ? 'Edit the product details below' : 'Add a new product to your store'}
+                  <DialogDescription className="text-slate-500 font-light">
+                    {editingProduct ? 'Refine the bespoke product details' : 'Integrate a new canvas into the Toodies catalog'}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="text-cyan-100">Product Name *</Label>
+                      <Label htmlFor="name" className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Product Name *</Label>
                       <Input
                         id="name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g., Classic T-Shirt"
-                        className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
+                        placeholder="e.g., Monarch Heavy Hoodie"
+                        className="bg-white/5 border-white/10 text-white rounded-xl focus:border-[#d4af37]/50 h-12"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="category" className="text-cyan-100">Category *</Label>
+                      <Label htmlFor="category" className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Category *</Label>
                       <Select value={category} onValueChange={setCategory}>
-                        <SelectTrigger className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100">
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-[#d4af37]/50 h-12">
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-[#111] border-white/10 text-white">
                           {storageUtils.getCategories().map((cat) => (
                             <SelectItem key={cat} value={cat}>
                               {cat}
@@ -323,32 +365,29 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           ))}
                         </SelectContent>
                       </Select>
-                      <p className="text-xs text-slate-400">
-                        Manage categories in the Categories tab
-                      </p>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="description" className="text-cyan-100">Description</Label>
+                    <Label htmlFor="description" className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Description</Label>
                     <Textarea
                       id="description"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Product description"
                       rows={3}
-                      className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
+                      className="bg-white/5 border-white/10 text-white rounded-xl focus:border-[#d4af37]/50"
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="gender" className="text-cyan-100">Gender</Label>
+                      <Label htmlFor="gender" className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Gender</Label>
                       <Select value={gender} onValueChange={(value: any) => setGender(value)}>
-                        <SelectTrigger className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100">
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl focus:border-[#d4af37]/50 h-12">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-[#111] border-white/10 text-white">
                           <SelectItem value="men">Men</SelectItem>
                           <SelectItem value="women">Women</SelectItem>
                           <SelectItem value="unisex">Unisex</SelectItem>
@@ -356,7 +395,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="basePrice" className="text-cyan-100">Base Price *</Label>
+                      <Label htmlFor="basePrice" className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Base Price *</Label>
                       <Input
                         id="basePrice"
                         type="number"
@@ -364,25 +403,24 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         value={basePrice}
                         onChange={(e) => setBasePrice(e.target.value)}
                         placeholder="1999"
-                        className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
+                        className="bg-white/5 border-white/10 text-white rounded-xl focus:border-[#d4af37]/50 h-12"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="image" className="text-cyan-100">Main Image URL</Label>
+                      <Label htmlFor="image" className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Main Image URL</Label>
                       <Input
                         id="image"
                         value={image}
                         onChange={(e) => setImage(e.target.value)}
                         placeholder="https://..."
-                        className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
+                        className="bg-white/5 border-white/10 text-white rounded-xl focus:border-[#d4af37]/50 h-12"
                       />
                     </div>
                   </div>
 
-                  {/* Variations */}
                   <div className="space-y-3">
-                    <Label className="text-cyan-100">Product Variations *</Label>
-                    <Card className="glass-card border-cyan-500/20">
+                    <Label className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Product Variations *</Label>
+                    <Card className="glass-card border-white/10 bg-white/5">
                       <CardContent className="pt-6">
                         <div className="grid grid-cols-6 gap-2 mb-3">
                           <div className="col-span-2 space-y-2">
@@ -391,14 +429,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                 type="color"
                                 value={varColor}
                                 onChange={(e) => setVarColor(e.target.value)}
-                                className="w-12 h-10 rounded cursor-pointer bg-transparent border border-cyan-500/30"
+                                className="w-12 h-10 rounded cursor-pointer bg-transparent border border-white/10"
                                 title="Pick a color"
                               />
                               <Input
-                                placeholder="Hex Code (e.g., #000000)"
+                                placeholder="Hex Code"
                                 value={varColor}
                                 onChange={(e) => setVarColor(e.target.value)}
-                                className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 font-mono text-sm flex-1"
+                                className="bg-white/5 border-white/10 text-white font-mono text-xs flex-1 h-10"
                               />
                             </div>
                           </div>
@@ -406,7 +444,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             placeholder="Size"
                             value={varSize}
                             onChange={(e) => setVarSize(e.target.value)}
-                            className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
+                            className="bg-white/5 border-white/10 text-white h-10"
                           />
                           <Input
                             type="number"
@@ -414,19 +452,19 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             placeholder="Price"
                             value={varPrice}
                             onChange={(e) => setVarPrice(e.target.value)}
-                            className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
+                            className="bg-white/5 border-white/10 text-white h-10"
                           />
                           <Input
                             type="number"
                             placeholder="Stock"
                             value={varStock}
                             onChange={(e) => setVarStock(e.target.value)}
-                            className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
+                            className="bg-white/5 border-white/10 text-white h-10"
                           />
                           <Button 
                             type="button" 
                             onClick={handleAddVariation}
-                            className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400"
+                            className="glow-button h-10 font-bold"
                           >
                             Add
                           </Button>
@@ -434,15 +472,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         {variations.length > 0 && (
                           <div className="space-y-2">
                             {variations.map((v) => (
-                              <div key={v.id} className="flex items-center justify-between bg-cyan-500/10 border border-cyan-500/20 p-3 rounded-lg">
+                              <div key={v.id} className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-xl">
                                 <div className="flex items-center gap-3">
                                   <div 
-                                    className="w-8 h-8 rounded-md border-2 border-white/20 shadow-lg"
+                                    className="w-8 h-8 rounded-lg border border-white/20"
                                     style={{ backgroundColor: v.color }}
-                                    title={v.color}
                                   />
-                                  <span className="text-sm text-cyan-100">
-                                    <span className="font-mono text-xs text-slate-400">{v.color}</span> - {v.size} - ₹{v.price} ({v.stock} in stock)
+                                  <span className="text-sm text-slate-300">
+                                    <span className="font-mono text-xs text-[#d4af37]">{v.color}</span> - {v.size} - ₹{v.price} ({v.stock} in stock)
                                   </span>
                                 </div>
                                 <Button
@@ -450,7 +487,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleRemoveVariation(v.id)}
-                                  className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                                 >
                                   <X className="w-4 h-4" />
                                 </Button>
@@ -462,22 +499,21 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </Card>
                   </div>
 
-                  {/* Printing Methods */}
                   <div className="space-y-3">
-                    <Label className="text-cyan-100">Printing Methods</Label>
-                    <Card className="glass-card border-cyan-500/20">
+                    <Label className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Printing Methods</Label>
+                    <Card className="glass-card border-white/10 bg-white/5">
                       <CardContent className="pt-6">
                         <div className="flex gap-2 mb-3">
                           <Input
                             placeholder="e.g., Screen Print, DTG, Embroidery"
                             value={newPrintMethod}
                             onChange={(e) => setNewPrintMethod(e.target.value)}
-                            className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
+                            className="bg-white/5 border-white/10 text-white rounded-xl h-10"
                           />
                           <Button 
                             type="button" 
                             onClick={handleAddPrintingMethod}
-                            className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400"
+                            className="glow-button h-10 font-bold"
                           >
                             Add
                           </Button>
@@ -485,12 +521,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         {printingMethods.length > 0 && (
                           <div className="flex flex-wrap gap-2">
                             {printingMethods.map((method) => (
-                              <div key={method} className="bg-teal-500/20 border border-teal-500/30 text-teal-200 px-3 py-1 rounded-full flex items-center gap-2">
-                                <span className="text-sm">{method}</span>
+                              <div key={method} className="bg-[#d4af37]/10 border border-[#d4af37]/30 text-[#d4af37] px-3 py-1 rounded-full flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-widest">{method}</span>
                                 <button
                                   type="button"
                                   onClick={() => handleRemovePrintingMethod(method)}
-                                  className="hover:bg-teal-500/30 rounded-full p-0.5 transition-colors"
+                                  className="hover:bg-[#d4af37]/20 rounded-full p-0.5 transition-colors"
                                 >
                                   <X className="w-3 h-3" />
                                 </button>
@@ -502,23 +538,21 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </Card>
                   </div>
 
-                  {/* Images */}
                   <div className="space-y-3">
-                    <Label className="text-cyan-100">Product Images (3-4 recommended)</Label>
-                    <p className="text-xs text-slate-400">Add multiple images to show in carousel on hover</p>
-                    <Card className="glass-card border-cyan-500/20">
+                    <Label className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Product Images</Label>
+                    <Card className="glass-card border-white/10 bg-white/5">
                       <CardContent className="pt-6">
                         <div className="flex gap-2 mb-3">
                           <Input
                             placeholder="Image URL"
                             value={newImageUrl}
                             onChange={(e) => setNewImageUrl(e.target.value)}
-                            className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500"
+                            className="bg-white/5 border-white/10 text-white rounded-xl h-10"
                           />
                           <Button 
                             type="button" 
                             onClick={handleAddImage}
-                            className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400"
+                            className="glow-button h-10 font-bold"
                           >
                             Add URL
                           </Button>
@@ -529,23 +563,23 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             accept="image/*"
                             multiple
                             onChange={handleImageFileUpload}
-                            className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
+                            className="bg-white/5 border-white/10 text-slate-400 h-10"
                           />
                         </div>
                         {images.length > 0 && (
                           <div className="space-y-2">
                             {images.map((imageUrl, index) => (
-                              <div key={index} className="flex items-center justify-between bg-cyan-500/10 border border-cyan-500/20 p-3 rounded-lg">
+                              <div key={index} className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-xl">
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                                  <span className="text-xs text-cyan-400 font-mono">#{index + 1}</span>
-                                  <span className="text-sm text-cyan-100 truncate">{imageUrl.substring(0, 50)}...</span>
+                                  <span className="text-[10px] text-[#d4af37] font-bold font-mono">#{index + 1}</span>
+                                  <span className="text-xs text-slate-300 truncate">{imageUrl.substring(0, 50)}...</span>
                                 </div>
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleRemoveImage(imageUrl)}
-                                  className="text-red-400 hover:text-red-300 hover:bg-red-500/20 ml-2"
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10 ml-2"
                                 >
                                   <X className="w-4 h-4" />
                                 </Button>
@@ -557,11 +591,89 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </Card>
                   </div>
 
+                  <div className="space-y-3">
+                    <Label className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px] flex items-center gap-2">
+                      <DollarSign className="w-4 h-4" />
+                      Fiscal Configuration
+                    </Label>
+                    <Card className="glass-card border-white/10 bg-white/5">
+                      <CardContent className="pt-6 space-y-4">
+                        <div className="space-y-3 pb-4 border-b border-white/5">
+                          <div className="text-[10px] font-bold text-[#d4af37] uppercase tracking-widest">Ready-to-Wear</div>
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm text-slate-300">Allow Full Prepaid</Label>
+                            <input
+                              type="checkbox"
+                              checked={allowPrepaid}
+                              onChange={(e) => setAllowPrepaid(e.target.checked)}
+                              className="w-5 h-5 rounded border-white/10 bg-white/5 text-[#d4af37]"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm text-slate-300">Allow COD/Postpaid</Label>
+                            <input
+                              type="checkbox"
+                              checked={allowPostpaid}
+                              onChange={(e) => setAllowPostpaid(e.target.checked)}
+                              className="w-5 h-5 rounded border-white/10 bg-white/5 text-[#d4af37]"
+                            />
+                          </div>
+                          {allowPostpaid && (
+                            <>
+                              <div className="space-y-2">
+                                <Label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Deposit (%)</Label>
+                                <Input
+                                  type="number"
+                                  value={partialPaymentPercentage}
+                                  onChange={(e) => setPartialPaymentPercentage(e.target.value)}
+                                  className="bg-white/5 border-white/10 text-white h-10"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">COD Premium (₹)</Label>
+                                <Input
+                                  type="number"
+                                  value={codExtraCharge}
+                                  onChange={(e) => setCodExtraCharge(e.target.value)}
+                                  className="bg-white/5 border-white/10 text-white h-10"
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="text-[10px] font-bold text-[#d4af37] uppercase tracking-widest">Bespoke Creations</div>
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm text-slate-300">Allow Bespoke Postpaid</Label>
+                            <input
+                              type="checkbox"
+                              checked={customDesignAllowPostpaid}
+                              onChange={(e) => setCustomDesignAllowPostpaid(e.target.checked)}
+                              className="w-5 h-5 rounded border-white/10 bg-white/5 text-[#d4af37]"
+                            />
+                          </div>
+                          {customDesignAllowPostpaid && (
+                            <div className="space-y-2">
+                              <Label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Bespoke Deposit (%)</Label>
+                              <Input
+                                type="number"
+                                value={customDesignPartialPaymentPercentage}
+                                onChange={(e) => setCustomDesignPartialPaymentPercentage(e.target.value)}
+                                className="bg-white/5 border-white/10 text-white h-10"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
                   <Button 
                     type="submit" 
-                    className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white glow-button border-0 py-6"
+                    className="glow-button w-full h-16 rounded-2xl font-black text-lg border-0"
                   >
-                    {editingProduct ? 'Update Product' : 'Add Product'}
+                    {editingProduct ? 'Update Masterpiece' : 'Integrate Canvas'}
                   </Button>
                 </form>
               </DialogContent>
@@ -569,252 +681,103 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             <Button 
               variant="outline" 
               onClick={handleLogout}
-              className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20"
+              className="border-[#d4af37]/30 text-[#d4af37] hover:bg-[#d4af37]/10 rounded-xl px-6 h-12 transition-all font-bold uppercase tracking-widest text-[10px]"
             >
               <LogOut className="w-4 h-4 mr-2" />
-              Logout
+              Terminate Session
             </Button>
           </div>
         </motion.div>
 
         <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6 bg-[#0f172a]/50 border border-cyan-500/20 p-1 rounded-2xl h-auto flex flex-wrap gap-2 justify-start">
-            <TabsTrigger 
-              value="dashboard"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <LayoutDashboard className="w-4 h-4 mr-2" />
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger 
-              value="products"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Package className="w-4 h-4 mr-2" />
-              Products
-            </TabsTrigger>
-            <TabsTrigger 
-              value="categories"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Tag className="w-4 h-4 mr-2" />
-              Categories
-            </TabsTrigger>
-            <TabsTrigger 
-              value="coupons"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Ticket className="w-4 h-4 mr-2" />
-              Coupons
-            </TabsTrigger>
-            <TabsTrigger 
-              value="customers"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Customers
-            </TabsTrigger>
-            <TabsTrigger 
-              value="orders"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Package className="w-4 h-4 mr-2" />
-              Orders
-            </TabsTrigger>
-            <TabsTrigger 
-              value="settings"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </TabsTrigger>
-            <TabsTrigger 
-              value="helpcenter"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <HeadphonesIcon className="w-4 h-4 mr-2" />
-              Help Center
-            </TabsTrigger>
-            <TabsTrigger 
-              value="messages"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Messages
-            </TabsTrigger>
-            <TabsTrigger 
-              value="popups"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Bell className="w-4 h-4 mr-2" />
-              Popups
-            </TabsTrigger>
-            <TabsTrigger 
-              value="business"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Building2 className="w-4 h-4 mr-2" />
-              Business Info
-            </TabsTrigger>
-            <TabsTrigger 
-              value="3dintegration"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Palette className="w-4 h-4 mr-2" />
-              2D Integration
-            </TabsTrigger>
-            <TabsTrigger 
-              value="customerdesigns"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Palette className="w-4 h-4 mr-2" />
-              Customer Designs
-            </TabsTrigger>
-            <TabsTrigger 
-              value="3dmodels"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Palette className="w-4 h-4 mr-2" />
-              2D Models
-            </TabsTrigger>
-            <TabsTrigger 
-              value="3dwebsite"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Palette className="w-4 h-4 mr-2" />
-              2D Website
-            </TabsTrigger>
-            <TabsTrigger 
-              value="printingmethods"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Palette className="w-4 h-4 mr-2" />
-              Printing Methods
-            </TabsTrigger>
-            <TabsTrigger 
-              value="designorders"
-              className="rounded-xl px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-teal-500 data-[state=active]:text-white transition-all whitespace-nowrap"
-            >
-              <Package className="w-4 h-4 mr-2" />
-              Design Orders
-            </TabsTrigger>
+          <TabsList className="mb-8 bg-white/5 border border-white/10 p-1.5 rounded-2xl h-auto flex flex-wrap gap-2 justify-start backdrop-blur-xl">
+            {navTabs.map((tab) => (
+              <TabsTrigger 
+                key={tab.value}
+                value={tab.value}
+                className="rounded-xl px-6 py-3 data-[state=active]:bg-[#d4af37] data-[state=active]:text-black text-slate-400 font-bold text-[10px] uppercase tracking-[2px] transition-all whitespace-nowrap"
+              >
+                {tab.icon && <tab.icon className="w-4 h-4 mr-2" />}
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
           
           <TabsContent value="dashboard">
-            <div className="space-y-6">
-              <Card className="glass-card border-cyan-500/20">
-                <CardHeader>
-                  <CardTitle className="text-cyan-100">Dashboard Overview</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-lg">
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[
+                  { label: 'Total Products', value: stats.totalProducts, icon: Package },
+                  { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingBag },
+                  { label: 'Total Customers', value: stats.totalCustomers, icon: Users },
+                  { label: 'Total Revenue', value: `₹${stats.totalRevenue.toLocaleString()}`, icon: DollarSign },
+                  { label: 'Pending Orders', value: stats.pendingOrders, icon: AlertTriangle },
+                  { label: 'Low Stock', value: stats.lowStockProducts, icon: Package },
+                ].map((stat, i) => (
+                  <Card key={i} className="glass-card border-white/5 bg-white/[0.02] rounded-3xl group hover:border-[#d4af37]/30 transition-all duration-500">
+                    <CardContent className="p-8">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-sm text-cyan-300">Total Products</h3>
-                          <h2 className="text-xl font-bold text-cyan-100">{stats.totalProducts}</h2>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-[2px] font-bold mb-2">{stat.label}</p>
+                          <h2 className="text-3xl font-black text-white">{stat.value}</h2>
                         </div>
-                        <Package className="w-6 h-6 text-cyan-500" />
-                      </div>
-                    </div>
-                    <div className="bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm text-cyan-300">Total Orders</h3>
-                          <h2 className="text-xl font-bold text-cyan-100">{stats.totalOrders}</h2>
+                        <div className="w-14 h-14 rounded-2xl bg-[#d4af37]/10 flex items-center justify-center border border-[#d4af37]/20 group-hover:scale-110 transition-transform">
+                          <stat.icon className="w-6 h-6 text-[#d4af37]" />
                         </div>
-                        <ShoppingBag className="w-6 h-6 text-cyan-500" />
                       </div>
-                    </div>
-                    <div className="bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm text-cyan-300">Total Customers</h3>
-                          <h2 className="text-xl font-bold text-cyan-100">{stats.totalCustomers}</h2>
-                        </div>
-                        <Users className="w-6 h-6 text-cyan-500" />
-                      </div>
-                    </div>
-                    <div className="bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm text-cyan-300">Total Revenue</h3>
-                          <h2 className="text-xl font-bold text-cyan-100">₹{stats.totalRevenue.toFixed(2)}</h2>
-                        </div>
-                        <DollarSign className="w-6 h-6 text-cyan-500" />
-                      </div>
-                    </div>
-                    <div className="bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm text-cyan-300">Pending Orders</h3>
-                          <h2 className="text-xl font-bold text-cyan-100">{stats.pendingOrders}</h2>
-                        </div>
-                        <AlertTriangle className="w-6 h-6 text-cyan-500" />
-                      </div>
-                    </div>
-                    <div className="bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm text-cyan-300">Low Stock Products</h3>
-                          <h2 className="text-xl font-bold text-cyan-100">{stats.lowStockProducts}</h2>
-                        </div>
-                        <AlertTriangle className="w-6 h-6 text-cyan-500" />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Product & 2D Model Status */}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
               <ProductModelStatus />
             </div>
           </TabsContent>
           
           <TabsContent value="products">
-            <Card className="glass-card border-cyan-500/20">
-              <CardHeader>
-                <CardTitle className="text-cyan-100">Products ({products.length})</CardTitle>
+            <Card className="glass-card border-white/5 bg-white/[0.02] rounded-[40px] overflow-hidden">
+              <CardHeader className="p-8 border-b border-white/5">
+                <CardTitle className="text-white text-2xl font-bold">Catalog Management ({products.length})</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 {products.length === 0 ? (
-                  <p className="text-center text-slate-400 py-8">No products yet. Add your first product!</p>
+                  <div className="text-center py-20">
+                    <Package className="w-16 h-16 text-slate-700 mx-auto mb-4 opacity-20" />
+                    <p className="text-slate-500 font-light">The catalog is currently empty.</p>
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-cyan-500/20 hover:bg-transparent">
-                          <TableHead className="text-cyan-300">Name</TableHead>
-                          <TableHead className="text-cyan-300">Category</TableHead>
-                          <TableHead className="text-cyan-300">Gender</TableHead>
-                          <TableHead className="text-cyan-300">Base Price</TableHead>
-                          <TableHead className="text-cyan-300">Variations</TableHead>
-                          <TableHead className="text-cyan-300">Actions</TableHead>
+                        <TableRow className="border-white/5 hover:bg-transparent h-16">
+                          <TableHead className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px] pl-8">Name</TableHead>
+                          <TableHead className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Category</TableHead>
+                          <TableHead className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Base Price</TableHead>
+                          <TableHead className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px]">Variations</TableHead>
+                          <TableHead className="text-[#d4af37] font-bold uppercase tracking-widest text-[10px] pr-8 text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {products.map((product) => (
-                          <TableRow key={product.id} className="border-cyan-500/10 hover:bg-cyan-500/5">
-                            <TableCell className="font-medium text-cyan-100">{product.name}</TableCell>
-                            <TableCell className="text-slate-300">{product.category}</TableCell>
-                            <TableCell className="capitalize text-slate-300">{product.gender}</TableCell>
-                            <TableCell className="text-teal-400">₹{product.basePrice.toFixed(2)}</TableCell>
-                            <TableCell className="text-slate-300">{product.variations.length}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
+                          <TableRow key={product.id} className="border-white/5 hover:bg-white/[0.02] h-20 group">
+                            <TableCell className="font-bold text-white pl-8 group-hover:text-[#d4af37] transition-colors">{product.name}</TableCell>
+                            <TableCell className="text-slate-400 font-light">{product.category}</TableCell>
+                            <TableCell className="text-white font-bold">₹{product.basePrice.toLocaleString()}</TableCell>
+                            <TableCell className="text-slate-400 font-light">{product.variations.length} items</TableCell>
+                            <TableCell className="pr-8 text-right">
+                              <div className="flex gap-2 justify-end">
                                 <Button
-                                  variant="outline"
-                                  size="sm"
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => handleEdit(product)}
-                                  className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20"
+                                  className="w-10 h-10 rounded-xl bg-white/5 text-slate-400 hover:text-[#d4af37] hover:bg-[#d4af37]/10 border border-white/10"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </Button>
                                 <Button
-                                  variant="outline"
-                                  size="sm"
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => handleDelete(product.id)}
-                                  className="border-red-500/30 text-red-400 hover:bg-red-500/20"
+                                  className="w-10 h-10 rounded-xl bg-white/5 text-slate-400 hover:text-red-500 hover:bg-red-500/10 border border-white/10"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -850,10 +813,6 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             <AdminSettings />
           </TabsContent>
           
-          <TabsContent value="helpcenter">
-            <HelpCenterManagement />
-          </TabsContent>
-          
           <TabsContent value="messages">
             <MessageTemplateManagement />
           </TabsContent>
@@ -862,6 +821,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             <PopupManagement />
           </TabsContent>
           
+          <TabsContent value="helpcenter">
+            <HelpCenterManagement />
+          </TabsContent>
+          
+          <TabsContent value="gifting">
+            <GiftingManagement />
+          </TabsContent>
+
           <TabsContent value="business">
             <BusinessSettings />
           </TabsContent>
@@ -874,6 +841,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             <CustomerDesignsManagement />
           </TabsContent>
           
+          <TabsContent value="designapproval">
+            <AdminDesignApproval />
+          </TabsContent>
+          
           <TabsContent value="3dmodels">
             <ThreeDModelManager />
           </TabsContent>
@@ -884,6 +855,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           
           <TabsContent value="printingmethods">
             <PrintingMethodsManagement />
+          </TabsContent>
+          
+          <TabsContent value="billingsettings">
+            <BillingCalculationSettings />
+          </TabsContent>
+          
+          <TabsContent value="mobileverification">
+            <SupabasePhoneAuthSettings />
           </TabsContent>
           
           <TabsContent value="designorders">

@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Textarea } from './ui/textarea';
-import { Building2, Mail, Phone, Globe, MapPin, Save, Facebook, Instagram, Twitter, Linkedin, CreditCard, Banknote, Eye, EyeOff, FileText, Monitor, MessageCircle } from 'lucide-react';
+import { Building2, Mail, Phone, Globe, MapPin, Save, Facebook, Instagram, Twitter, Linkedin, CreditCard, Banknote, Eye, EyeOff, FileText, Monitor, MessageCircle, Image as ImageIcon, Upload, X } from 'lucide-react';
 import { storageUtils } from '../utils/storage';
 import { BusinessInfo } from '../types';
 import { toast } from 'sonner@2.0.3';
@@ -13,6 +13,7 @@ import { Switch } from './ui/switch';
 export function BusinessSettings() {
   const [businessInfo, setBusinessInfo] = useState<BusinessInfo>(storageUtils.getBusinessInfo());
   const [loading, setLoading] = useState(false);
+  const [heroImagePreview, setHeroImagePreview] = useState<string>(businessInfo.heroImage || '');
 
   const handleSave = () => {
     setLoading(true);
@@ -21,6 +22,26 @@ export function BusinessSettings() {
       toast.success('Business information saved successfully!');
       setLoading(false);
     }, 500);
+  };
+
+  const handleHeroImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setHeroImagePreview(result);
+        setBusinessInfo({ ...businessInfo, heroImage: result });
+        toast.success('Hero image uploaded! Remember to save changes.');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeHeroImage = () => {
+    setHeroImagePreview('');
+    setBusinessInfo({ ...businessInfo, heroImage: '' });
+    toast.success('Hero image removed! Remember to save changes.');
   };
 
   const updateVisibility = (context: 'website' | 'invoice', field: string, value: boolean) => {
@@ -388,6 +409,64 @@ export function BusinessSettings() {
                 className="bg-[#0f172a]/50 border-cyan-500/30 text-cyan-100"
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Hero Image */}
+      <Card className="glass-card border-cyan-500/20">
+        <CardHeader>
+          <CardTitle className="text-cyan-100 flex items-center gap-2">
+            <ImageIcon className="w-5 h-5" />
+            Hero Image
+          </CardTitle>
+          <CardDescription>Upload a custom hero/banner image for your landing page (optional)</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3">
+              <Label className="text-cyan-100 font-medium flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-cyan-400" />
+                Landing Page Hero Image
+              </Label>
+              <p className="text-xs text-slate-400">
+                This image will be displayed as the main hero image on your website's landing page. Recommended size: 1080x1350px (4:5 aspect ratio).
+              </p>
+              <Input
+                id="hero-image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleHeroImageUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                onClick={() => document.getElementById('hero-image-upload')?.click()}
+                className="bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white w-full md:w-auto">
+                <Upload className="w-4 h-4 mr-2" />
+                {heroImagePreview ? 'Change Hero Image' : 'Upload Hero Image'}
+              </Button>
+            </div>
+
+            {heroImagePreview && (
+              <div className="relative rounded-xl overflow-hidden border border-cyan-500/30">
+                <img
+                  src={heroImagePreview}
+                  alt="Hero Image Preview"
+                  className="w-full h-64 object-cover"
+                />
+                <Button
+                  type="button"
+                  onClick={removeHeroImage}
+                  className="absolute top-3 right-3 bg-red-500/90 hover:bg-red-600 text-white px-3 py-2 rounded-lg shadow-lg">
+                  <X className="w-4 h-4 mr-1" />
+                  Remove
+                </Button>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                  <p className="text-white text-sm font-medium">Current Hero Image</p>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
