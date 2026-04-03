@@ -1,23 +1,26 @@
-import { useState, useEffect } from 'react';
-import { Toaster, toast } from 'sonner@2.0.3';
-import { Button } from './components/ui/button';
-import { AdminLogin } from './components/AdminLogin';
 import { AdminDashboard } from './components/AdminDashboard';
 import { CustomerAuth } from './components/CustomerAuth';
 import { CustomerDashboard } from './components/CustomerDashboard';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsAndConditions } from './components/TermsAndConditions';
 import { TwoDStudioPage } from './components/TwoDStudioPage';
+import { SupabaseConnectionBanner } from './components/SupabaseConnectionBanner';
 import { GoogleAnalytics, FacebookPixel } from './components/SEOHead';
 import { User, CustomDesign } from './types';
 import { Sparkles, ShoppingBag, Palette, Phone, Mail, MapPin, MessageCircle, Users, Facebook, Instagram, Twitter, Linkedin, Shield } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ImageWithFallback } from './components/figma/ImageWithFallback';
 import { authApi, productsApi, settingsApi, designsApi } from './utils/supabaseApi';
-import { supabaseStorage } from './utils/supabaseStorage';
 import { storageUtils } from './utils/storage';
+import { useState, useEffect } from 'react';
+import { toast, Toaster } from 'sonner@2.0.3';
+import { Button } from './components/ui/button';
+import { AdminLogin } from './components/AdminLogin';
 import toodiesLogo from 'figma:asset/c561690211cdd59869b2af6c111db0bf09f362da.png';
 import tigerIcon from 'figma:asset/0384d838979de15e8db05f2eef126aa9e88613fe.png';
+
+// Development mode: Detect localStorage misuse
+import './utils/localStorageDetector';
 
 type ViewMode = 'landing' | 'admin' | 'customer' | 'privacy' | 'terms' | '2dstudio';
 
@@ -32,45 +35,15 @@ export default function App() {
   useEffect(() => {
     const loadBusinessData = async () => {
       try {
-        // Try to load from Supabase
+        // Load from Supabase (primary source)
         const business = await settingsApi.getBusiness();
         
-        // If we got data from Supabase, use it
         if (business && Object.keys(business).length > 0) {
           setBusinessInfo(business);
-          console.log('✅ Using Supabase database - Migration successful!');
+          console.log('✅ Loaded business data from Supabase');
         } else {
-          // Otherwise try localStorage
-          console.log('⚠️ Database tables not found. Please run SQL migration!');
-          console.log('📋 Instructions: Open /RUN_THIS_SQL_NOW.md');
-          try {
-            const localBusiness = storageUtils.getBusinessInfo();
-            setBusinessInfo(localBusiness);
-          } catch (localError) {
-            // Set default business info
-            setBusinessInfo({
-              companyName: 'Toodies',
-              phone: '+91 98865 10858',
-              email: 'hello@toodies.com',
-              whatsapp: '+919886510858',
-              city: 'Bangalore',
-              state: 'Karnataka',
-              visibility: {
-                website: {
-                  showWhatsApp: true,
-                  showSocialMedia: true
-                }
-              },
-              socialMedia: {}
-            });
-          }
-        }
-      } catch (error) {
-        // Silent fallback - already handled in settingsApi
-        try {
-          const localBusiness = storageUtils.getBusinessInfo();
-          setBusinessInfo(localBusiness);
-        } catch (localError) {
+          console.error('❌ Database tables not found');
+          console.error('📋 Run: /database/fresh-setup-v2.sql in Supabase SQL Editor');
           // Set default business info
           setBusinessInfo({
             companyName: 'Toodies',
@@ -88,6 +61,24 @@ export default function App() {
             socialMedia: {}
           });
         }
+      } catch (error) {
+        console.error('❌ Error loading business data from Supabase:', error);
+        // Set default business info
+        setBusinessInfo({
+          companyName: 'Toodies',
+          phone: '+91 98865 10858',
+          email: 'hello@toodies.com',
+          whatsapp: '+919886510858',
+          city: 'Bangalore',
+          state: 'Karnataka',
+          visibility: {
+            website: {
+              showWhatsApp: true,
+              showSocialMedia: true
+            }
+          },
+          socialMedia: {}
+        });
       }
       
       // Try to load admin settings for analytics (optional)
@@ -727,6 +718,7 @@ export default function App() {
       return (
         <>
           <Toaster />
+          <SupabaseConnectionBanner />
           <AdminLogin onLogin={handleAdminLogin} />
         </>
       );
@@ -734,6 +726,7 @@ export default function App() {
     return (
       <>
         <Toaster />
+        <SupabaseConnectionBanner />
         <AdminDashboard onLogout={handleAdminLogout} />
       </>
     );

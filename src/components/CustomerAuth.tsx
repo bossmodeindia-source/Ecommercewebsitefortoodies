@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { LogIn, UserPlus, Mail, Phone, Lock, User as UserIcon, KeyRound, ArrowLeft, FileText, CheckCircle, Sparkles } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Phone, Lock, User as UserIcon, KeyRound, ArrowLeft, FileText, CheckCircle, Sparkles, ShieldCheck, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { storageUtils } from '../utils/storage';
 import { toast } from 'sonner@2.0.3';
@@ -12,6 +12,7 @@ import { User } from '../types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Checkbox } from './ui/checkbox';
 import tigerLogo from 'figma:asset/404faa741eb4394d917a24330c1566de438eea2b.png';
+import { authApi } from '../utils/supabaseApi';
 
 interface CustomerAuthProps {
   onLogin: (user: User) => void;
@@ -27,28 +28,39 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
   const [signupPassword, setSignupPassword] = useState('');
   const [signupName, setSignupName] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [resetMobile, setResetMobile] = useState('');
-  const [resetOtp, setResetOtp] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [resetUserId, setResetUserId] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const [showTermsDialog, setShowTermsDialog] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user = storageUtils.loginUser(loginEmail, loginPassword);
-    if (user) {
+    setIsLoading(true);
+    try {
+      // Try Supabase Auth first
+      const result = await authApi.customerSignin(loginEmail, loginPassword);
       toast.success('Access Granted. Welcome back to the Toodies experience.');
-      onLogin(user);
-    } else {
-      toast.error('Authentication failed. Please verify your credentials.');
+      onLogin(result.user);
+    } catch (supabaseError: any) {
+      // Fallback to localStorage
+      try {
+        const user = storageUtils.loginUser(loginEmail, loginPassword);
+        if (user) {
+          toast.success('Access Granted. Welcome back to the Toodies experience.');
+          onLogin(user);
+        } else {
+          toast.error(supabaseError?.message || 'Authentication failed. Please verify your credentials.');
+        }
+      } catch {
+        toast.error(supabaseError?.message || 'Authentication failed. Please verify your credentials.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!signupEmail || !signupMobile || !signupPassword || !signupName) {
@@ -62,56 +74,46 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
       return;
     }
 
-    const users = storageUtils.getUsers();
-    if (users.some(u => u.email === signupEmail || u.mobile === signupMobile)) {
-      toast.error('This identity is already associated with an account.');
-      return;
+    setIsLoading(true);
+    try {
+      // Try Supabase Auth first
+      const result = await authApi.customerSignup(signupEmail, signupPassword, signupName, signupMobile);
+      toast.success('Membership activated. Welcome to the world of Toodies.');
+      onLogin(result.user);
+    } catch (supabaseError: any) {
+      // Fallback to localStorage
+      try {
+        const users = storageUtils.getUsers();
+        if (users.some((u: any) => u.email === signupEmail || u.mobile === signupMobile)) {
+          toast.error('This identity is already associated with an account.');
+          return;
+        }
+        const user = storageUtils.registerUser(signupEmail, signupMobile, signupPassword, signupName);
+        toast.success('Membership activated. Welcome to the world of Toodies.');
+        onLogin(user);
+      } catch {
+        toast.error(supabaseError?.message || 'Registration failed. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
     }
-
-    const user = storageUtils.registerUser(signupEmail, signupMobile, signupPassword, signupName);
-    toast.success('Membership activated. Welcome to the world of Toodies.');
-    onLogin(user);
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user = storageUtils.getUserByMobile(resetMobile);
-    if (user) {
-      const otp = Math.floor(1000 + Math.random() * 9000).toString();
-      setGeneratedOtp(otp);
-      setResetUserId(user.id);
-      setOtpSent(true);
-      toast.success('Security code dispatched to your registered mobile.');
-    } else {
-      toast.error('This mobile number is not in our records.');
-    }
-  };
-
-  const handleResetPassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!resetOtp || !newPassword || !confirmPassword) {
-      toast.error('Please fulfill all security requirements.');
+    if (!resetEmail) {
+      toast.error('Please enter your email address.');
       return;
     }
-
-    if (resetOtp !== generatedOtp) {
-      toast.error('Invalid security code.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast.error('Password confirmation mismatch.');
-      return;
-    }
-
-    const user = storageUtils.getUserById(resetUserId);
-    if (user) {
-      storageUtils.updateUserPassword(user.id, newPassword);
-      toast.success('Security protocols updated. Password reset successful.');
-      setShowForgotPassword(false);
-    } else {
-      toast.error('Account identity could not be verified.');
+    setIsLoading(true);
+    try {
+      await authApi.requestPasswordReset(resetEmail);
+      setResetEmailSent(true);
+      toast.success('Password reset email sent. Please check your inbox.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to send reset email. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -192,10 +194,11 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
                   <div className="space-y-3 pt-2">
                     <Button 
                       type="submit" 
+                      disabled={isLoading}
                       className="w-full h-14 bg-[#d4af37] hover:bg-[#c9a227] text-black font-black text-sm uppercase tracking-[3px] rounded-2xl border-0 shadow-lg shadow-[#d4af37]/20 active:scale-95 transition-all"
                     >
-                      <LogIn className="w-4 h-4 mr-2" />
-                      Login
+                      {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <LogIn className="w-4 h-4 mr-2" />}
+                      {isLoading ? 'Authenticating...' : 'Login'}
                     </Button>
                     <Button 
                       type="button" 
@@ -272,10 +275,11 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
                   <div className="pt-2">
                     <Button 
                       type="submit" 
+                      disabled={isLoading}
                       className="w-full h-14 bg-[#d4af37] hover:bg-[#c9a227] text-black font-black text-sm uppercase tracking-[3px] rounded-2xl border-0 shadow-lg shadow-[#d4af37]/20 transition-all"
                     >
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Create Account
+                      {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserPlus className="w-4 h-4 mr-2" />}
+                      {isLoading ? 'Creating Account...' : 'Create Account'}
                     </Button>
                   </div>
                 </form>
@@ -299,7 +303,7 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
       </motion.div>
 
       {/* Forgot Password Dialog */}
-      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+      <Dialog open={showForgotPassword} onOpenChange={(open) => { setShowForgotPassword(open); if (!open) { setResetEmail(''); setResetEmailSent(false); } }}>
         <DialogContent className="glass-card border-[#d4af37]/30 bg-black rounded-[32px] max-w-sm">
           <DialogHeader className="text-center">
             <div className="mx-auto w-12 h-12 rounded-xl bg-[#d4af37]/10 flex items-center justify-center mb-4 border border-[#d4af37]/20">
@@ -307,101 +311,60 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
             </div>
             <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight">Security Reset</DialogTitle>
             <DialogDescription className="text-slate-500 font-light text-sm uppercase tracking-widest">
-              Enter your mobile number to reset access
+              {resetEmailSent ? 'Check your inbox' : 'Enter your email to reset access'}
             </DialogDescription>
           </DialogHeader>
           <div className="pt-4">
-            <form onSubmit={handleForgotPassword} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="reset-mobile" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Mobile Number</Label>
-                <div className="relative group">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <Input
-                    id="reset-mobile"
-                    type="tel"
-                    placeholder="+91 00000 00000"
-                    value={resetMobile}
-                    onChange={(e) => setResetMobile(e.target.value)}
-                    className="pl-12 bg-white/5 border-white/10 text-white h-12 rounded-xl focus:border-[#d4af37]/50 transition-all"
-                  />
+            {resetEmailSent ? (
+              <div className="text-center space-y-6">
+                <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto border border-green-500/20">
+                  <CheckCircle className="w-8 h-8 text-green-400" />
                 </div>
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full h-12 bg-[#d4af37] text-black font-black text-xs uppercase tracking-[2px] rounded-xl border-0 shadow-lg shadow-[#d4af37]/10"
-              >
-                Dispatch Code
-              </Button>
-            </form>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reset Password Dialog */}
-      <Dialog open={otpSent} onOpenChange={setOtpSent}>
-        <DialogContent className="glass-card border-[#d4af37]/30 bg-black rounded-[32px] max-w-sm">
-          <DialogHeader className="text-center">
-            <div className="mx-auto w-12 h-12 rounded-xl bg-[#d4af37]/10 flex items-center justify-center mb-4 border border-[#d4af37]/20">
-              <ShieldCheck className="w-6 h-6 text-[#d4af37]" />
-            </div>
-            <DialogTitle className="text-2xl font-black text-white uppercase tracking-tight">Identity Verified</DialogTitle>
-            <DialogDescription className="text-slate-500 font-light text-sm uppercase tracking-widest">
-              Establish your new security credentials
-            </DialogDescription>
-          </DialogHeader>
-          <div className="pt-4">
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="reset-otp" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Security Code</Label>
-                <Input
-                  id="reset-otp"
-                  type="text"
-                  placeholder="0000"
-                  value={resetOtp}
-                  onChange={(e) => setResetOtp(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white h-12 rounded-xl text-center text-xl font-black tracking-[8px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-password" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">New Password</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white h-12 rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Confirm Identity</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white h-12 rounded-xl"
-                />
-              </div>
-              <div className="pt-4 space-y-3">
-                <Button 
-                  type="submit" 
+                <p className="text-slate-300 text-sm">
+                  A password reset link has been sent to <span className="text-[#d4af37] font-bold">{resetEmail}</span>. Please check your inbox and follow the instructions.
+                </p>
+                <Button
+                  onClick={() => { setShowForgotPassword(false); setResetEmailSent(false); setResetEmail(''); }}
                   className="w-full h-12 bg-[#d4af37] text-black font-black text-xs uppercase tracking-[2px] rounded-xl border-0"
                 >
-                  Finalize Access
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="ghost"
-                  className="w-full text-slate-500 font-bold text-[10px] uppercase tracking-widest"
-                  onClick={() => setOtpSent(false)}
-                >
-                  <ArrowLeft className="w-3 h-3 mr-2" />
-                  Back
+                  Back to Login
                 </Button>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email" className="text-[10px] font-bold text-[#d4af37] uppercase tracking-[2px] ml-1">Email Address</Label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="email@example.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      className="pl-12 bg-white/5 border-white/10 text-white h-12 rounded-xl focus:border-[#d4af37]/50 transition-all"
+                    />
+                  </div>
+                </div>
+                <Button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="w-full h-12 bg-[#d4af37] text-black font-black text-xs uppercase tracking-[2px] rounded-xl border-0 shadow-lg shadow-[#d4af37]/10"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  {isLoading ? 'Sending...' : 'Send Reset Link'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowForgotPassword(false)}
+                  className="w-full text-slate-500 font-bold text-[10px] uppercase tracking-widest"
+                >
+                  <ArrowLeft className="w-3 h-3 mr-2" />
+                  Back to Login
+                </Button>
+              </form>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -507,24 +470,4 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
       </Dialog>
     </div>
   );
-}
-
-function ShieldCheck(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
-  )
 }

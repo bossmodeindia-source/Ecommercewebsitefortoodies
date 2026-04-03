@@ -5,12 +5,22 @@ export interface User {
   email: string;
   password?: string;
   phone?: string;
+  mobile?: string;           // alias used by localStorage auth
+  address?: string;
   role: 'admin' | 'customer';
   createdAt: string;
+  // Verification flags (camelCase used everywhere in the app)
+  emailVerified?: boolean;
+  mobileVerified?: boolean;
+  // Legacy / extended fields
   savedCustomerDesigns?: any[];
   savedDesigns?: CustomDesign[]; // Legacy designs
   cart?: CartItem[];
+  orders?: any[];
   isGuest?: boolean;
+  // Supabase mapped extras (kept for compatibility)
+  email_verified?: boolean;
+  is_verified?: boolean;
 }
 
 // Product Types
@@ -76,22 +86,33 @@ export interface Order {
   userName?: string;
   userEmail?: string;
   userPhone?: string;
+  userMobile?: string;       // alias used by notification service
   items: OrderItem[];
   total: number;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   createdAt: string;
+  date?: string;             // alias for createdAt used by storageUtils
   updatedAt: string;
   shippingAddress?: string;
   paymentMethod?: string;
   paymentId?: string;
   trackingNumber?: string;
   invoiceId?: string;
+  // Payment flags
+  notificationSent?: boolean;
+  discount?: number;
+  couponCode?: string;
+  paymentStatus?: 'pending' | 'completed' | 'failed';
+  // Razorpay
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
   // Prepaid payment tracking
-  prepaidAmount?: number; // Amount received as prepaid
-  prepaidDate?: string; // Date when prepaid received
-  prepaidReference?: string; // Transaction reference number
-  prepaidNotes?: string; // Additional notes about prepaid payment
-  remainingAmount?: number; // Remaining amount to be collected
+  prepaidAmount?: number;
+  prepaidDate?: string;
+  prepaidReference?: string;
+  prepaidNotes?: string;
+  remainingAmount?: number;
 }
 
 // Custom Design Types

@@ -53,7 +53,11 @@ import {
   Circle,
   Plus,
   Minus,
-  ShoppingCart
+  ShoppingCart,
+  Sparkles,
+  Wand2,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
@@ -61,6 +65,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ThreeDModelConfig } from '../types';
 import { storageUtils } from '../utils/storage';
 import { DesignCheckoutModal } from './DesignCheckoutModal';
+import { generateWithPaperspaceSD } from '../utils/aiDesignGenerator';
+import { aiConfigApi } from '../utils/supabaseApi';
 
 interface TwoDDesignerProps {
   isOpen: boolean;
@@ -85,6 +91,8 @@ interface DesignElement {
   fontFamily?: string;
   flipH?: boolean;
   flipV?: boolean;
+  opacity?: number;       // 0–1, default 1 (fully opaque)
+  isAIGenerated?: boolean; // true for Paperspace SD / AI layers
 }
 
 interface HistoryState {
@@ -156,6 +164,8 @@ export function Advanced2DDesigner({
   const canvasRef = useRef<any>(null);
   const stageRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Image cache: keyed by content (src URL / data-URL) → decoded HTMLImageElement
+  const imageCache = useRef<Map<string, HTMLImageElement>>(new Map());
   
   // PERFECT SQUARE CANVAS - 1200x1200 pixels (no conversion, exact coordinates)
   const CANVAS_WIDTH = 1200;
@@ -172,12 +182,35 @@ export function Advanced2DDesigner({
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
   const [zoom, setZoom] = useState(80);
   const [showGrid, setShowGrid] = useState(true);
-  const [activeTab, setActiveTab] = useState<'upload' | 'text' | 'shapes' | 'templates'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'text' | 'shapes' | 'templates' | 'ai'>('upload');
   
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [designSnapshot, setDesignSnapshot] = useState<string>('');
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [isRemovingBackground, setIsRemovingBackground] = useState(false);
+
+  // AI Design Generation state
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiGeneratedImages, setAiGeneratedImages] = useState<string[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiGenerationStep, setAiGenerationStep] = useState('');
+
+  // Check if AI Design feature is enabled by admin
+  const [isAIFeatureEnabled, setIsAIFeatureEnabled] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('ai_design_feature_enabled');
+      return stored === null ? true : stored === 'true';
+    } catch { return true; }
+  });
+
+  // Sync AI feature flag from Supabase on mount
+  useEffect(() => {
+    aiConfigApi.getFeatureEnabled().then(enabled => {
+      setIsAIFeatureEnabled(enabled);
+      localStorage.setItem('ai_design_feature_enabled', String(enabled));
+    }).catch(() => {/* keep localStorage value */});
+  }, []);
 
   // History for undo/redo
   const [history, setHistory] = useState<HistoryState[]>([{ elements: [], selectedElement: null }]);
@@ -310,6 +343,21 @@ export function Advanced2DDesigner({
     drawCanvas();
   }, [elements, selectedElement, zoom, showGrid, selectedColor, isModelLoaded]);
 
+  // Helper: draw a rounded rectangle path
+  const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  };
+
   const drawCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -390,6 +438,9 @@ export function Advanced2DDesigner({
       if (element.flipH) ctx.scale(-1, 1);
       if (element.flipV) ctx.scale(1, -1);
       
+      // Apply layer opacity (default 1)
+      ctx.globalAlpha = element.opacity ?? 1;
+
       if (element.type === 'text') {
         ctx.font = `bold ${element.fontSize || 48}px ${element.fontFamily || 'Arial'}`;
         ctx.fillStyle = element.color || '#FFFFFF';
@@ -397,10 +448,19 @@ export function Advanced2DDesigner({
         ctx.textBaseline = 'middle';
         ctx.fillText(element.content, 0, 0);
       } else if (element.type === 'image') {
-        const img = new Image();
-        img.src = element.content;
-        if (img && img.complete) {
-          ctx.drawImage(img, -element.width / 2, -element.height / 2, element.width, element.height);
+        // Use image cache for reliable rendering (especially for new AI-generated data-URLs)
+        const cached = imageCache.current.get(element.content);
+        if (cached && cached.complete && cached.naturalWidth > 0) {
+          ctx.drawImage(cached, -element.width / 2, -element.height / 2, element.width, element.height);
+        } else if (!cached) {
+          // Load and cache, then re-draw canvas once loaded
+          const img = new Image();
+          img.onload = () => {
+            imageCache.current.set(element.content, img);
+            drawCanvas();
+          };
+          img.src = element.content;
+          imageCache.current.set(element.content, img); // store placeholder
         }
       } else if (element.type === 'shape') {
         ctx.fillStyle = element.color || '#d4af37';
@@ -413,11 +473,14 @@ export function Advanced2DDesigner({
         }
       }
       
+      ctx.globalAlpha = 1; // reset before restore
       ctx.restore();
       
       // Selection highlight
       if (element.id === selectedElement) {
-        ctx.strokeStyle = '#d4af37';
+        // AI-generated layers get a purple accent; regular elements gold
+        const accentColor = element.isAIGenerated ? '#a855f7' : '#d4af37';
+        ctx.strokeStyle = accentColor;
         ctx.lineWidth = 3;
         ctx.strokeRect(element.x - 5, element.y - 5, element.width + 10, element.height + 10);
         
@@ -429,10 +492,26 @@ export function Advanced2DDesigner({
           { x: element.x + element.width - handleSize/2, y: element.y + element.height - handleSize/2 },
         ];
         
-        ctx.fillStyle = '#d4af37';
+        ctx.fillStyle = accentColor;
         handles.forEach(handle => {
           ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
         });
+
+        // ✦ AI badge above the selection box
+        if (element.isAIGenerated) {
+          const badgeX = element.x + element.width / 2;
+          const badgeY = element.y - 22;
+          ctx.fillStyle = 'rgba(168,85,247,0.85)';
+          const badgeW = 64;
+          const badgeH = 18;
+          roundRect(ctx, badgeX - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 4);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 11px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('✦ AI Layer', badgeX, badgeY);
+        }
       }
     });
   };
@@ -507,6 +586,7 @@ export function Advanced2DDesigner({
       const imageUrl = event.target?.result as string;
       const img = new Image();
       img.onload = () => {
+        imageCache.current.set(imageUrl, img); // pre-warm cache
         const newElement: DesignElement = {
           id: Date.now().toString(),
           type: 'image',
@@ -515,7 +595,9 @@ export function Advanced2DDesigner({
           y: 450,
           width: Math.min(img.width, 350),
           height: Math.min(img.height, 350),
-          rotation: 0
+          rotation: 0,
+          opacity: 1,
+          isAIGenerated: false
         };
         const newElements = [...elements, newElement];
         setElements(newElements);
@@ -583,6 +665,11 @@ export function Advanced2DDesigner({
       
       reader.onload = (event) => {
         const processedImageUrl = event.target?.result as string;
+
+        // Pre-warm cache with the new processed image
+        const cachedImg = new Image();
+        cachedImg.onload = () => imageCache.current.set(processedImageUrl, cachedImg);
+        cachedImg.src = processedImageUrl;
         
         // Update the element with the processed image
         const updatedElements = elements.map(el =>
@@ -679,6 +766,92 @@ export function Advanced2DDesigner({
       saveToHistory(newElements, newElement.id);
       toast.success('Element duplicated');
     }
+  };
+
+  // AI Design Generation handler - generates image via Paperspace SD and adds it as a layer
+  const handleGenerateAIDesign = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error('Please describe your design first');
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    setAiError(null);
+    setAiGenerationStep('Connecting to Stable Diffusion...');
+
+    try {
+      setAiGenerationStep('Sending prompt to Paperspace AI...');
+      const imageDataUrl = await generateWithPaperspaceSD(aiPrompt.trim(), productName);
+
+      setAiGenerationStep('Processing generated image...');
+
+      // Add generated image to canvas as a layer (same as uploaded images)
+      const img = new Image();
+      img.onload = () => {
+        // Pre-warm the image cache so it renders on first drawCanvas call
+        imageCache.current.set(imageDataUrl, img);
+        const newElement: DesignElement = {
+          id: `ai_${Date.now()}`,
+          type: 'image',
+          content: imageDataUrl,
+          x: Math.round((CANVAS_WIDTH - Math.min(img.width, 600)) / 2),
+          y: Math.round((CANVAS_HEIGHT - Math.min(img.height, 600)) / 2),
+          width: Math.min(img.width, 600),
+          height: Math.min(img.height, 600),
+          rotation: 0,
+          opacity: 1,
+          isAIGenerated: true
+        };
+        const newElements = [...elements, newElement];
+        setElements(newElements);
+        setSelectedElement(newElement.id);
+        saveToHistory(newElements, newElement.id);
+        setAiGeneratedImages(prev => [imageDataUrl, ...prev.slice(0, 4)]);
+        toast.success('AI design generated and added as a layer!', {
+          description: 'Move, resize, or use "Remove Background" on this layer.'
+        });
+        setIsGeneratingAI(false);
+        setAiGenerationStep('');
+      };
+      img.onerror = () => {
+        setAiError('Failed to load the generated image onto canvas.');
+        setIsGeneratingAI(false);
+        setAiGenerationStep('');
+      };
+      img.src = imageDataUrl;
+
+    } catch (error: any) {
+      console.error('AI generation error:', error);
+      setAiError(error.message || 'Generation failed. Please check your Paperspace API settings.');
+      setIsGeneratingAI(false);
+      setAiGenerationStep('');
+    }
+  };
+
+  // Re-add a previously generated AI image to canvas
+  const handleAddGeneratedImageToCanvas = (imageDataUrl: string) => {
+    const img = new Image();
+    img.onload = () => {
+      imageCache.current.set(imageDataUrl, img); // pre-warm cache
+      const newElement: DesignElement = {
+        id: `ai_re_${Date.now()}`,
+        type: 'image',
+        content: imageDataUrl,
+        x: Math.round((CANVAS_WIDTH - Math.min(img.width, 500)) / 2) + 30,
+        y: Math.round((CANVAS_HEIGHT - Math.min(img.height, 500)) / 2) + 30,
+        width: Math.min(img.width, 500),
+        height: Math.min(img.height, 500),
+        rotation: 0,
+        opacity: 1,
+        isAIGenerated: true
+      };
+      const newElements = [...elements, newElement];
+      setElements(newElements);
+      setSelectedElement(newElement.id);
+      saveToHistory(newElements, newElement.id);
+      toast.success('Image added to canvas as a layer');
+    };
+    img.src = imageDataUrl;
   };
 
   const handleAlign = (type: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
@@ -918,7 +1091,8 @@ export function Advanced2DDesigner({
                   { id: 'upload', icon: Upload, label: 'UPLOAD' },
                   { id: 'text', icon: Type, label: 'TEXT' },
                   { id: 'shapes', icon: Square, label: 'SHAPES' },
-                  { id: 'templates', icon: FileText, label: 'TEMPLATES' }
+                  { id: 'templates', icon: FileText, label: 'TEMPLATES' },
+                  { id: 'ai', icon: Sparkles, label: 'AI DESIGN' }
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -1277,12 +1451,208 @@ export function Advanced2DDesigner({
                         </div>
                       </motion.div>
                     )}
+                    {/* AI Design Tab */}
+                    {activeTab === 'ai' && (
+                      <motion.div
+                        key="ai"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="space-y-5"
+                      >
+                        {/* Header */}
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-[#d4af37]/20 border border-purple-500/30 flex items-center justify-center">
+                            <Sparkles className="w-4 h-4 text-[#d4af37]" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-wider">AI DESIGN GENERATOR</h3>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wide">Powered by Stable Diffusion</p>
+                          </div>
+                        </div>
+
+                        {/* ── AI FEATURE DISABLED: Coming Soon Screen ── */}
+                        {!isAIFeatureEnabled ? (
+                          <div className="flex flex-col items-center justify-center py-10 px-4 text-center space-y-5">
+                            {/* Animated sparkle icon */}
+                            <div className="relative">
+                              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/10 to-[#d4af37]/10 border border-[#d4af37]/20 flex items-center justify-center mx-auto">
+                                <Sparkles className="w-9 h-9 text-[#d4af37]/50" />
+                              </div>
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center">
+                                <AlertCircle className="w-3 h-3 text-slate-500" />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <h4 className="text-white font-black uppercase tracking-[3px] text-base">AI Design</h4>
+                              <div className="inline-flex items-center gap-2 bg-[#d4af37]/10 border border-[#d4af37]/30 rounded-full px-4 py-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#d4af37] animate-pulse" />
+                                <span className="text-[#d4af37] font-black text-xs uppercase tracking-widest">Coming Soon</span>
+                              </div>
+                            </div>
+
+                            <p className="text-slate-500 text-xs leading-relaxed max-w-[200px]">
+                              AI-powered design generation is currently unavailable. Check back soon for an exciting update.
+                            </p>
+
+                            <div className="w-full bg-white/[0.03] border border-white/5 rounded-xl p-3">
+                              <p className="text-[10px] text-slate-600 leading-relaxed">
+                                Our team is fine-tuning the AI to deliver premium print-ready designs tailored for Toodies custom apparel.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                        <>
+                        {/* Info banner */}
+                        <div className="bg-[#d4af37]/5 border border-[#d4af37]/20 rounded-xl p-3">
+                          <p className="text-[11px] text-slate-400 leading-relaxed">
+                            Describe your design. AI generates it as a <span className="text-[#d4af37] font-bold">transparent layer</span> added directly to your canvas — move, resize, or remove background just like any uploaded image.
+                          </p>
+                        </div>
+
+                        {/* Prompt Input */}
+                        <div className="space-y-2">
+                          <label className="text-xs text-slate-400 uppercase tracking-wider font-bold">Design Description</label>
+                          <textarea
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                            placeholder="e.g. A fierce dragon made of golden flames, Japanese ink brush style, centered graphic, bold black outlines..."
+                            className="w-full bg-black/40 border border-white/10 text-white text-sm rounded-xl p-3 resize-none focus:outline-none focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/30 placeholder:text-slate-600"
+                            rows={5}
+                            disabled={isGeneratingAI}
+                          />
+                          <p className="text-[10px] text-slate-600">
+                            "No background" is added to every prompt automatically.
+                          </p>
+                        </div>
+
+                        {/* Quick prompt suggestions */}
+                        <div className="space-y-2">
+                          <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Quick Ideas</label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              'Minimalist lion head',
+                              'Geometric mountain',
+                              'Rose skull tattoo',
+                              'Abstract wave',
+                              'Retro sun burst',
+                              'Space astronaut',
+                              'Phoenix bird',
+                              'Samurai mask'
+                            ].map((suggestion) => (
+                              <button
+                                key={suggestion}
+                                onClick={() => setAiPrompt(prev => prev ? `${prev}, ${suggestion.toLowerCase()}` : suggestion)}
+                                disabled={isGeneratingAI}
+                                className="text-[10px] bg-white/5 hover:bg-[#d4af37]/10 border border-white/10 hover:border-[#d4af37]/30 text-slate-400 hover:text-[#d4af37] px-2 py-1 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Generate Button */}
+                        <button
+                          onClick={handleGenerateAIDesign}
+                          disabled={isGeneratingAI || !aiPrompt.trim()}
+                          className="w-full h-14 rounded-xl font-black uppercase tracking-wider text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed text-black"
+                          style={{
+                            background: isGeneratingAI
+                              ? 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #d4af37 100%)'
+                              : 'linear-gradient(135deg, #7c3aed 0%, #d4af37 100%)',
+                            boxShadow: isGeneratingAI
+                              ? '0 0 20px rgba(139,92,246,0.4)'
+                              : '0 4px 12px rgba(212,175,55,0.25)'
+                          }}
+                        >
+                          {isGeneratingAI ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                              <span className="truncate">{aiGenerationStep || 'Generating...'}</span>
+                            </span>
+                          ) : (
+                            <span className="flex items-center justify-center gap-2">
+                              <Wand2 className="w-5 h-5" />
+                              Generate with AI
+                            </span>
+                          )}
+                        </button>
+
+                        {/* Error Display */}
+                        {aiError && (
+                          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-xs text-red-400 font-bold mb-1">Generation Failed</p>
+                                <p className="text-[11px] text-red-300/80 leading-relaxed">{aiError}</p>
+                                {(aiError.includes('not configured') || aiError.includes('API key') || aiError.includes('active')) && (
+                                  <p className="text-[10px] text-red-300/50 mt-1.5">
+                                    Admin: Go to Admin Dashboard → AI Integration Settings → enable "Paperspace (Stable Diffusion)" and add your API key + endpoint URL.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Previously Generated Images */}
+                        {aiGeneratedImages.length > 0 && (
+                          <div className="space-y-2">
+                            <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">
+                              Generated Designs — click to add as layer
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {aiGeneratedImages.map((imgUrl, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => handleAddGeneratedImageToCanvas(imgUrl)}
+                                  className="relative aspect-square rounded-lg overflow-hidden border border-white/10 hover:border-[#d4af37]/50 transition-all group"
+                                >
+                                  <img
+                                    src={imgUrl}
+                                    alt={`AI generated design ${idx + 1}`}
+                                    className="w-full h-full object-contain bg-slate-900/80"
+                                  />
+                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                    <Plus className="w-5 h-5 text-[#d4af37]" />
+                                    <span className="text-[10px] text-[#d4af37] font-bold">ADD</span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Admin setup note */}
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 space-y-1">
+                          <p className="text-[10px] text-[#d4af37] font-black uppercase tracking-wider">⚙ Admin Setup Required</p>
+                          <p className="text-[10px] text-slate-600 leading-relaxed">
+                            Configure Paperspace API key in:<br />
+                            Admin Panel → AI Integration Settings → Paperspace (Stable Diffusion)
+                          </p>
+                        </div>
+                        </>
+                        )} {/* end isAIFeatureEnabled */}
+                      </motion.div>
+                    )}
                   </AnimatePresence>
 
                   {/* Element Controls - Always show when element is selected */}
                   {selectedElementData && (
                     <Card className="bg-white/[0.02] border-white/10 rounded-2xl p-5 space-y-5 mt-6">
-                      <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-wider">ELEMENT CONTROLS</h3>
+                      {/* Header with AI badge */}
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-wider">ELEMENT CONTROLS</h3>
+                        {selectedElementData.isAIGenerated && (
+                          <span className="flex items-center gap-1 bg-purple-500/20 border border-purple-500/40 text-purple-300 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            AI Layer
+                          </span>
+                        )}
+                      </div>
                       
                       {/* Background Removal Button - Only for images */}
                       {selectedElementData.type === 'image' && (
@@ -1308,6 +1678,23 @@ export function Advanced2DDesigner({
                             className="py-3"
                           />
                           <p className="text-xs text-slate-500 text-center font-bold">{selectedElementData.rotation}°</p>
+                        </div>
+
+                        {/* Opacity slider — available for all layer types */}
+                        <div className="space-y-2">
+                          <Label className="text-xs text-slate-400 uppercase tracking-wider font-bold">Opacity</Label>
+                          <Slider
+                            value={[Math.round((selectedElementData.opacity ?? 1) * 100)]}
+                            onValueChange={([value]) => updateSelectedElement({ opacity: value / 100 })}
+                            onValueCommit={([value]) => updateSelectedElementWithHistory({ opacity: value / 100 })}
+                            min={5}
+                            max={100}
+                            step={1}
+                            className="py-3"
+                          />
+                          <p className="text-xs text-slate-500 text-center font-bold">
+                            {Math.round((selectedElementData.opacity ?? 1) * 100)}%
+                          </p>
                         </div>
 
                         <div className="grid grid-cols-3 gap-2">
@@ -1339,6 +1726,64 @@ export function Advanced2DDesigner({
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Layers Panel - always visible, shows all canvas layers */}
+                  {elements.length > 0 && (
+                    <Card className="bg-white/[0.02] border-white/10 rounded-2xl p-4 space-y-2 mt-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Layers className="w-3.5 h-3.5 text-[#d4af37]" />
+                        <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-wider">Layers</h3>
+                        <span className="ml-auto text-[10px] text-slate-600 font-bold">{elements.length}</span>
+                      </div>
+                      <div className="space-y-1 max-h-[180px] overflow-y-auto custom-scrollbar">
+                        {[...elements].reverse().map((el, idx) => {
+                          const isSelected = el.id === selectedElement;
+                          const layerLabel =
+                            el.type === 'text' ? el.content.substring(0, 18) || 'Text'
+                            : el.type === 'shape' ? `Shape (${el.content})`
+                            : el.isAIGenerated ? '✦ AI Image'
+                            : 'Image';
+                          return (
+                            <button
+                              key={el.id}
+                              onClick={() => setSelectedElement(el.id)}
+                              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all ${
+                                isSelected
+                                  ? el.isAIGenerated
+                                    ? 'bg-purple-500/20 border border-purple-500/40'
+                                    : 'bg-[#d4af37]/15 border border-[#d4af37]/40'
+                                  : 'hover:bg-white/5 border border-transparent'
+                              }`}
+                            >
+                              {/* Type icon */}
+                              <span className={`w-5 h-5 flex items-center justify-center rounded flex-shrink-0 ${
+                                el.isAIGenerated ? 'text-purple-400' : 'text-slate-400'
+                              }`}>
+                                {el.type === 'text' ? (
+                                  <Type className="w-3 h-3" />
+                                ) : el.type === 'shape' ? (
+                                  <Square className="w-3 h-3" />
+                                ) : el.isAIGenerated ? (
+                                  <Sparkles className="w-3 h-3" />
+                                ) : (
+                                  <ImageIcon className="w-3 h-3" />
+                                )}
+                              </span>
+                              <span className={`text-[11px] truncate flex-1 ${isSelected ? 'text-white' : 'text-slate-400'}`}>
+                                {layerLabel}
+                              </span>
+                              {/* Opacity indicator */}
+                              {(el.opacity ?? 1) < 1 && (
+                                <span className="text-[9px] text-slate-600 font-bold">
+                                  {Math.round((el.opacity ?? 1) * 100)}%
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </Card>
                   )}

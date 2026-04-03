@@ -28,45 +28,56 @@ URGENT_FIX_MIGRATION.sql
 - Configures triggers for auto-updates
 - Inserts default data (business info, admin settings, etc.)
 
-**Tables created:**
-1. users
-2. categories
-3. products
-4. product_variations
-5. printing_methods
-6. **saved_customer_designs** ⭐ (fixed table with all fields)
-7. cart_items
-8. orders
-9. order_items
-10. coupons
-11. business_info
-12. admin_settings
-13. three_d_model_configs
-14. three_d_website_integration
-15. help_center
-16. printing_methods
-17. billing_calculation_settings
-18. gifting_templates
-19. message_templates
-20. popup_messages
-21. shown_popups
-22. chat_conversations
-23. chat_messages
-24. ai_config
-
-### `URGENT_FIX_MIGRATION.sql`
-**Purpose:** Fix the 6 critical errors in existing databases  
-**When to use:** You already have a database but need to apply the fixes  
+### `FIX_SECURITY_WARNINGS.sql` ⭐
+**Purpose:** Fix Supabase security linter warnings  
+**When to use:** After seeing security warnings in Supabase Dashboard  
 **What it does:**
-- Drops incorrect `customer_designs` table
-- Creates correct `saved_customer_designs` table with ALL fields:
-  - Gifting protocol fields (purchase_mode, neck_label_text, thank_you_card_text, custom_box_text)
-  - Admin approval fields (approval_status, admin_set_price, approval_notes, reviewed_by)
-  - Payment tracking (payment_status)
-  - Delivery info (delivery_address, pincode, phone)
-  - Pricing breakdown (printing_cost, product_price, gst_amount, etc.)
-- Updates RLS policies
-- Fixes foreign key constraints in cart_items and order_items
+- Fixes function search_path security vulnerability
+- Adds SECURITY DEFINER and SET search_path to functions
+- Recreates all triggers with secure configuration
+
+**📖 Documentation:** `/SECURITY_WARNINGS_FIX_GUIDE.md` and `/DO_THIS_NOW.md`
+
+### `PASSWORD_PROTECTION_INFO.sql` ℹ️
+**Purpose:** Explains why SQL cannot enable password protection  
+**When to use:** Understanding password security architecture  
+**What it does:**
+- Explains Auth API vs Database architecture
+- Shows what IS and ISN'T possible with SQL
+- Provides verification queries
+
+**📖 Explanation:** `/SQL_EXPLANATION_PASSWORD_PROTECTION.md`
+
+### `SQL_PASSWORD_WORKAROUNDS.sql` 🛡️ (Optional)
+**Purpose:** Basic password validation functions  
+**When to use:** For additional validation (NOT a replacement for dashboard!)  
+**What it does:**
+- Creates enhanced_password_validation() function
+- Creates password_strength_score() function
+- Sets up password attempt logging
+
+⚠️ **Important:** This is NOT a replacement for dashboard setting!
+
+### `COPY_PASTE_FIX.sql`
+**Purpose:** Quick admin account setup  
+**When to use:** Creating admin user for the first time  
+**What it does:**
+- Creates/updates admin profile in users table
+- Sets correct role and permissions
+- Single copy-paste solution
+
+### `CREATE_ADMIN_ACCOUNT.sql` 🆕
+**Purpose:** Step-by-step admin account creation guide  
+**When to use:** If admin login fails with "Invalid credentials"  
+**What it does:**
+- Instructions to create admin in Supabase Auth Dashboard
+- SQL to link auth user to public.users table
+- Troubleshooting and verification queries
+- Emergency bypass method
+
+**📖 Related Guides:** 
+- `/ADMIN_LOGIN_QUICK_FIX.md` - Quick solutions
+- `/ADMIN_LOGIN_TROUBLESHOOTING.md` - Complete troubleshooting
 
 ---
 

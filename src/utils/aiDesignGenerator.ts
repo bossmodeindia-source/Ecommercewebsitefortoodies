@@ -1,192 +1,75 @@
 // Version check - helps detect browser caching issues
-console.log('✅ AI Design Generator v3.0 loaded - Fixed Kimi type');
+console.log('✅ AI Design Generator v4.0 loaded - Supabase-backed providers');
 
 // Configuration version for auto-upgrades
 const CONFIG_VERSION = 3;
-
-// Default provider configuration (fallback if localStorage is empty)
-const FALLBACK_PROVIDER = {
-  id: 'kimi',
-  name: 'Kimi 2.5 (Moonshot)',
-  type: 'text' as const, // Kimi is text-only, not image generation
-  isActive: true,
-  apiKey: 'sk-50SOnqs2BB0WpDIUmHfEqejs4H0CA93u8NkTg8i4yTvre6in',
-  endpoint: 'https://api.moonshot.cn/v1',
-  model: 'moonshot-v1-8k',
-  settings: {
-    maxTokens: 1000,
-    temperature: 0.7,
-    imageSize: '1024x1024'
-  }
-};
 
 // In-memory cache for providers (fallback if localStorage fails)
 let providersCache: any[] | null = null;
 
 /**
- * Initialize default providers if not already configured
- */
-function initializeDefaultProviders(): void {
-  try {
-    // Check if we need to upgrade the configuration
-    const configVersion = localStorage.getItem('ai_providers_version');
-    const currentVersion = parseInt(configVersion || '0', 10);
-    
-    if (currentVersion < CONFIG_VERSION) {
-      console.log(`🔄 Upgrading AI config from v${currentVersion} to v${CONFIG_VERSION}...`);
-      
-      // Clear old config and reinitialize
-      localStorage.removeItem('ai_providers');
-      localStorage.setItem('ai_providers_version', CONFIG_VERSION.toString());
-      
-      // Force reinitialization below
-    }
-    
-    const saved = localStorage.getItem('ai_providers');
-    if (!saved) {
-      console.log('🔧 Initializing default AI providers...');
-      const defaultProviders = [FALLBACK_PROVIDER];
-      const jsonString = JSON.stringify(defaultProviders);
-      localStorage.setItem('ai_providers', jsonString);
-      localStorage.setItem('ai_providers_version', CONFIG_VERSION.toString());
-      
-      // Also save to memory cache
-      providersCache = defaultProviders;
-      
-      // Verify it was saved
-      const verification = localStorage.getItem('ai_providers');
-      if (verification) {
-        console.log('✅ Default AI providers initialized successfully');
-        console.log('📦 Saved data:', verification);
-      } else {
-        console.error('❌ Failed to save providers to localStorage - using memory cache');
-      }
-    } else {
-      console.log('📦 AI providers already configured');
-      
-      // Parse and validate
-      const providers = JSON.parse(saved);
-      
-      // Fix Kimi type if it's wrong
-      const kimiProvider = providers.find((p: any) => p.id === 'kimi' || p.name.includes('Kimi'));
-      if (kimiProvider && kimiProvider.type !== 'text') {
-        console.log('🔧 Fixing Kimi provider type from', kimiProvider.type, 'to text');
-        kimiProvider.type = 'text';
-        localStorage.setItem('ai_providers', JSON.stringify(providers));
-      }
-      
-      providersCache = providers;
-    }
-  } catch (error) {
-    console.error('❌ Error initializing default providers:', error);
-    console.log('🔄 Using in-memory fallback provider');
-    providersCache = [FALLBACK_PROVIDER];
-  }
-}
-
-// Auto-initialize on module load
-initializeDefaultProviders();
-
-/**
- * Get active AI provider from admin settings
+ * Get active AI provider — reads from Supabase first, falls back to localStorage.
+ * Import is lazy so we don't create circular dependency issues.
  */
 export function getActiveAIProvider() {
+  // Synchronous path: use localStorage / memory cache
   try {
     let saved = localStorage.getItem('ai_providers');
     let providers: any[] = [];
-    
-    if (!saved) {
-      console.warn('⚠️ No AI providers configured in localStorage');
-      
-      // Try memory cache first
-      if (providersCache && providersCache.length > 0) {
-        console.log('🔄 Using providers from memory cache');
-        providers = providersCache;
-      } else {
-        console.warn('🔧 Initializing default providers...');
-        
-        // Initialize with default Kimi provider
-        const defaultProviders = [
-          {
-            id: 'kimi',
-            name: 'Kimi 2.5 (Moonshot)',
-            type: 'text' as const, // Kimi is text-only, not image generation
-            isActive: true,
-            apiKey: 'sk-50SOnqs2BB0WpDIUmHfEqejs4H0CA93u8NkTg8i4yTvre6in',
-            endpoint: 'https://api.moonshot.cn/v1',
-            model: 'moonshot-v1-8k',
-            settings: {
-              maxTokens: 1000,
-              temperature: 0.7,
-              imageSize: '1024x1024'
-            }
-          }
-        ];
-        
-        // Save to localStorage
-        try {
-          localStorage.setItem('ai_providers', JSON.stringify(defaultProviders));
-          console.log('✅ Default providers saved to localStorage');
-        } catch (e) {
-          console.error('❌ Could not save to localStorage:', e);
-        }
-        
-        // Save to memory cache
-        providersCache = defaultProviders;
-        providers = defaultProviders;
-      }
-    } else {
+
+    if (saved) {
       providers = JSON.parse(saved);
-      providersCache = providers; // Update cache
-      console.log('📦 Loaded providers from localStorage:', providers.length);
+      providersCache = providers;
+    } else if (providersCache && providersCache.length > 0) {
+      providers = providersCache;
+    } else {
+      providers = [];
     }
-    
-    // Get active image provider (or provider that supports both)
-    const activeProvider = providers.find((p: any) => {
-      console.log('🔍 Checking provider:', p.name, '| Active:', p.isActive, '| Type:', p.type);
-      return p.isActive && (p.type === 'image' || p.type === 'both');
-    });
-    
-    if (!activeProvider) {
-      console.warn('⚠️ No active AI provider found among', providers.length, 'providers');
-      console.warn('Available providers:', providers.map((p: any) => `${p.name} (active: ${p.isActive}, type: ${p.type})`).join(', '));
-      
-      // Last resort: use FALLBACK_PROVIDER directly
-      console.log('🔄 Using hard-coded fallback provider');
-      const normalizedFallback = {
-        ...FALLBACK_PROVIDER,
-        apiEndpoint: FALLBACK_PROVIDER.endpoint,
-        modelName: FALLBACK_PROVIDER.model
-      };
-      console.log('✅ Fallback Provider:', normalizedFallback.name);
-      return normalizedFallback;
-    }
-    
-    // Normalize provider properties (handle both 'endpoint' and 'apiEndpoint' formats)
-    const normalizedProvider = {
+
+    const activeProvider = providers.find((p: any) =>
+      p.isActive && (p.type === 'image' || p.type === 'both')
+    );
+
+    if (!activeProvider) return null;
+
+    return {
       ...activeProvider,
       apiEndpoint: activeProvider.apiEndpoint || activeProvider.endpoint || '',
-      modelName: activeProvider.modelName || activeProvider.model || 'moonshot-v1-8k',
-      apiKey: activeProvider.apiKey || ''
+      modelName: activeProvider.modelName || activeProvider.model || '',
+      apiKey: activeProvider.apiKey || '',
     };
-    
-    console.log('✅ Active AI Provider:', normalizedProvider.name);
-    console.log('   Type:', normalizedProvider.type);
-    console.log('   Endpoint:', normalizedProvider.apiEndpoint);
-    console.log('   Model:', normalizedProvider.modelName);
-    console.log('   Has API Key:', !!normalizedProvider.apiKey);
-    
-    return normalizedProvider;
-  } catch (error) {
-    console.error('❌ Error getting AI provider:', error);
-    
-    // Emergency fallback
-    console.log('🆘 Using emergency fallback provider');
-    return {
-      ...FALLBACK_PROVIDER,
-      apiEndpoint: FALLBACK_PROVIDER.endpoint,
-      modelName: FALLBACK_PROVIDER.model
-    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Async version — pulls from Supabase then updates cache.
+ * Use this when you can await (e.g. before generation starts).
+ */
+export async function getActiveAIProviderAsync(): Promise<any | null> {
+  try {
+    // Dynamically import to avoid circular deps
+    const { aiConfigApi } = await import('./supabaseApi');
+    const provider = await aiConfigApi.getActiveImageProvider();
+    if (provider) {
+      // Update localStorage cache so synchronous reads stay fresh
+      const all = await aiConfigApi.getProviders();
+      if (all.length > 0) {
+        localStorage.setItem('ai_providers', JSON.stringify(all));
+        providersCache = all;
+      }
+      return {
+        ...provider,
+        apiEndpoint: provider.apiEndpoint || provider.endpoint || '',
+        modelName: provider.modelName || provider.model || '',
+        apiKey: provider.apiKey || '',
+      };
+    }
+    return null;
+  } catch {
+    // Fall back to synchronous path
+    return getActiveAIProvider();
   }
 }
 
@@ -341,78 +224,197 @@ OUTPUT: Describe the exact flat graphic design (colors, shapes, typography, layo
 }
 
 /**
- * Generate design image using configured image generation provider
+ * Generate design image using Paperspace Stable Diffusion API
+ * The prompt automatically includes "no background" for print-ready results
  */
-export async function generateDesignImage(prompt: string): Promise<string> {
+export async function generateWithPaperspaceSD(userPrompt: string, productType: string = 't-shirt'): Promise<string> {
   try {
-    console.log('🖼️ generateDesignImage called');
-    
-    // Get active AI provider
-    const provider = getActiveAIProvider();
-    
-    if (!provider) {
-      throw new Error('No active AI provider configured. Please configure one in Admin > AI Design settings.');
+    // Get providers from localStorage
+    let providers: any[] = [];
+    const saved = localStorage.getItem('ai_providers');
+    if (saved) {
+      providers = JSON.parse(saved);
+    } else if (providersCache) {
+      providers = providersCache;
     }
-    
-    if (!provider.apiKey) {
-      throw new Error(`API key not configured for ${provider.name}. Please add it in Admin settings.`);
+
+    // Find active Paperspace SD provider
+    const sdProvider = providers.find((p: any) =>
+      p.isActive && (p.id === 'paperspace-sd' || (p.id?.startsWith('custom-') && p.type === 'image'))
+    );
+
+    if (!sdProvider) {
+      throw new Error(
+        'Stable Diffusion (Paperspace) is not configured or active. ' +
+        'Please go to Admin Dashboard → AI Integration Settings and activate the Paperspace provider.'
+      );
     }
-    
-    // Check if provider supports image generation
-    if (provider.type !== 'image' && provider.type !== 'both') {
-      throw new Error(`${provider.name} does not support image generation. Please configure an image-capable AI provider like OpenAI DALL-E or Stability AI.`);
+
+    if (!sdProvider.apiKey) {
+      throw new Error(
+        `API key not set for "${sdProvider.name}". ` +
+        'Please add your Paperspace API key in Admin → AI Integration Settings.'
+      );
     }
-    
-    console.log('✅ Using image provider:', provider.name);
-    
-    // Build image generation request based on provider
-    const response = await fetch(provider.apiEndpoint || provider.endpoint, {
+
+    if (!sdProvider.endpoint) {
+      throw new Error(
+        `Endpoint URL not set for "${sdProvider.name}". ` +
+        'Please configure the Paperspace deployment URL in Admin → AI Integration Settings.'
+      );
+    }
+
+    console.log('🎨 Generating with Paperspace SD:', sdProvider.name);
+    console.log('📍 Endpoint:', sdProvider.endpoint);
+
+    // Build enhanced prompt with strict no-background requirement
+    const enhancedPrompt = [
+      userPrompt,
+      `for ${productType} printing`,
+      'transparent background',
+      'no background',
+      'isolated graphic design',
+      'flat vector art style',
+      'centered composition',
+      'print ready',
+      'high quality',
+      'crisp edges',
+      'bold colors',
+      '1024x1024'
+    ].join(', ');
+
+    const negativePrompt =
+      'background, clothing, garment, model, person, human, shadow, drop shadow, ' +
+      '3d render, blurry, low quality, watermark, text overlay, noise, grain, ' +
+      'realistic photo, photograph, photorealistic, dark background, white background, ' +
+      'gradient background, bokeh, lens flare';
+
+    const imageSize = sdProvider.settings?.imageSize || '1024x1024';
+    const [imgWidth, imgHeight] = imageSize.split('x').map(Number);
+
+    const requestBody: any = {
+      prompt: enhancedPrompt,
+      negative_prompt: negativePrompt,
+      width: imgWidth || 1024,
+      height: imgHeight || 1024,
+      steps: sdProvider.settings?.steps || 25,
+      cfg_scale: sdProvider.settings?.cfgScale || 7.5,
+      samples: 1,
+      n: 1,
+      num_inference_steps: sdProvider.settings?.steps || 25,
+      guidance_scale: sdProvider.settings?.cfgScale || 7.5,
+    };
+
+    // If model is specified, include it
+    if (sdProvider.model) {
+      requestBody.model = sdProvider.model;
+      requestBody.model_id = sdProvider.model;
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Support multiple auth styles
+    const authType = sdProvider.authType || 'bearer';
+    if (authType === 'bearer') {
+      headers['Authorization'] = `Bearer ${sdProvider.apiKey}`;
+    } else if (authType === 'api-key') {
+      headers['X-Api-Key'] = sdProvider.apiKey;
+    } else if (authType === 'paperspace') {
+      headers['Authorization'] = sdProvider.apiKey;
+    } else {
+      headers['Authorization'] = `Bearer ${sdProvider.apiKey}`;
+    }
+
+    console.log('📤 Sending request to Paperspace SD...');
+
+    const response = await fetch(sdProvider.endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${provider.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: provider.modelName || provider.model || 'dall-e-3',
-        prompt: prompt,
-        n: 1,
-        size: '1024x1024',
-        response_format: 'url'
-      }),
+      headers,
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Image API Response Error:', response.status, errorText);
-      throw new Error(`Image generation failed (${response.status}): ${errorText.substring(0, 200)}`);
+      console.error('❌ Paperspace SD Error:', response.status, errorText);
+      throw new Error(
+        `Stable Diffusion API error (${response.status}): ${errorText.substring(0, 300)}`
+      );
     }
 
     const data = await response.json();
-    const imageUrl = data.data?.[0]?.url || '';
+    console.log('✅ Paperspace SD response received');
 
-    if (!imageUrl) {
-      throw new Error('No image URL returned from AI provider');
+    // Handle multiple common SD API response formats
+    let imageData: string | null = null;
+
+    // Format 1: A1111/Automatic1111 WebUI format → { "images": ["base64..."] }
+    if (data.images && Array.isArray(data.images) && data.images[0]) {
+      imageData = data.images[0];
+      console.log('📦 Using A1111 format response');
+    }
+    // Format 2: Stability AI / DreamStudio → { "artifacts": [{ "base64": "..." }] }
+    else if (data.artifacts && data.artifacts[0]?.base64) {
+      imageData = data.artifacts[0].base64;
+      console.log('📦 Using Stability AI format response');
+    }
+    // Format 3: Generic output array → { "output": ["base64..." or "url..."] }
+    else if (data.output && Array.isArray(data.output) && data.output[0]) {
+      imageData = data.output[0];
+      console.log('📦 Using generic output format response');
+    }
+    // Format 4: Single base64 field → { "image": "base64..." }
+    else if (data.image) {
+      imageData = data.image;
+      console.log('📦 Using single image format response');
+    }
+    // Format 5: Hugging Face Inference API → { "data": [{ "url": "..." }] }
+    else if (data.data && Array.isArray(data.data) && data.data[0]) {
+      imageData = data.data[0].url || data.data[0].base64 || data.data[0];
+      console.log('📦 Using HuggingFace format response');
+    }
+    // Format 6: Replicate → { "urls": { "get": "..." } } or poll URL
+    else if (data.urls?.get) {
+      // For replicate, we'd need to poll - simplified to error
+      throw new Error('Replicate polling format not supported directly. Use a synchronous SD endpoint.');
     }
 
-    console.log('✅ Image URL received:', imageUrl.substring(0, 50) + '...');
+    if (!imageData) {
+      console.error('❌ Unknown response format:', JSON.stringify(data).substring(0, 500));
+      throw new Error(
+        'Could not extract image from API response. ' +
+        'Ensure the endpoint returns images in A1111, Stability AI, or standard base64 format.'
+      );
+    }
 
-    // Convert URL to base64 for storage
-    console.log('📥 Downloading image for base64 conversion...');
-    const imageResponse = await fetch(imageUrl);
-    const imageBlob = await imageResponse.blob();
-    
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        console.log('✅ Image converted to base64');
-        resolve(reader.result as string);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(imageBlob);
-    });
+    // If it's a URL (not base64), fetch and convert
+    if (typeof imageData === 'string' && (imageData.startsWith('http://') || imageData.startsWith('https://'))) {
+      console.log('📥 Image returned as URL, downloading...');
+      const imgResponse = await fetch(imageData);
+      if (!imgResponse.ok) throw new Error('Failed to download generated image from URL');
+      const blob = await imgResponse.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // Return as data URL (base64)
+    if (typeof imageData === 'string') {
+      const dataUrl = imageData.startsWith('data:')
+        ? imageData
+        : `data:image/png;base64,${imageData}`;
+      console.log('✅ Image ready as data URL');
+      return dataUrl;
+    }
+
+    throw new Error('Invalid image data format received from API');
 
   } catch (error) {
-    console.error('❌ Image Generation Error:', error);
+    console.error('❌ Paperspace SD generation error:', error);
     throw error;
   }
 }
@@ -456,7 +458,7 @@ export async function generateCompleteDesign(userPrompt: string, productType: st
     const structuredImagePrompt = `${conceptResult.prompt}\n\nTECHNICAL SPECS:\n- Flat vector illustration\n- Transparent background\n- No shadows or 3D effects\n- Clean edges\n- Bold colors\n- Centered composition\n- Square 1024x1024px\n- Print-ready quality`;
 
     console.log('🖼️ Generating image from refined prompt...');
-    const imageUrl = await generateDesignImage(structuredImagePrompt);
+    const imageUrl = await generateDesignImage(structuredImagePrompt, productType);
     
     console.log('✅ Design generation completed successfully!');
 
@@ -478,5 +480,111 @@ export async function generateCompleteDesign(userPrompt: string, productType: st
       success: false,
       error: errorMessage
     };
+  }
+}
+
+/**
+ * Generate a design image using the best available image provider.
+ * Now fetches provider from Supabase before calling the API.
+ */
+export async function generateDesignImage(prompt: string, productType: string = 't-shirt'): Promise<string> {
+  // Refresh provider cache from Supabase before generating
+  try {
+    const { aiConfigApi } = await import('./supabaseApi');
+    const all = await aiConfigApi.getProviders();
+    if (all.length > 0) {
+      localStorage.setItem('ai_providers', JSON.stringify(all));
+      providersCache = all;
+    }
+  } catch {
+    // Continue with cached providers
+  }
+
+  // Try Paperspace SD first (primary image provider)
+  try {
+    return await generateWithPaperspaceSD(prompt, productType);
+  } catch (paperspaceError) {
+    console.warn('⚠️ Paperspace SD failed, checking other image providers...', paperspaceError);
+  }
+
+  // Fallback: check for any other active image provider
+  let providers: any[] = [];
+  try {
+    const saved = localStorage.getItem('ai_providers');
+    if (saved) providers = JSON.parse(saved);
+    else if (providersCache) providers = providersCache;
+  } catch (_) {}
+
+  const imageProvider = providers.find(
+    (p: any) => p.isActive && (p.type === 'image' || p.type === 'both') && p.id !== 'paperspace-sd'
+  );
+
+  if (!imageProvider) {
+    throw new Error(
+      'No active image generation provider found. ' +
+      'Please configure a Paperspace SD or compatible image API in Admin → AI Integration Settings.'
+    );
+  }
+
+  if (!imageProvider.apiKey) {
+    throw new Error(
+      `API key not set for "${imageProvider.name}". ` +
+      'Please add it in Admin → AI Integration Settings.'
+    );
+  }
+
+  console.log('🔄 Using fallback image provider:', imageProvider.name);
+
+  switch (imageProvider.id) {
+    case 'openai-dalle': {
+      const endpoint = `${imageProvider.endpoint}/images/generations`;
+      const body = {
+        model: imageProvider.model || 'dall-e-3',
+        prompt,
+        n: 1,
+        size: imageProvider.settings?.imageSize || '1024x1024',
+        quality: imageProvider.settings?.quality || 'standard',
+        response_format: 'b64_json'
+      };
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${imageProvider.apiKey}` },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error(`DALL-E error (${res.status}): ${await res.text()}`);
+      const data = await res.json();
+      const b64 = data.data?.[0]?.b64_json;
+      if (!b64) throw new Error('No image data in DALL-E response');
+      return `data:image/png;base64,${b64}`;
+    }
+
+    case 'stability': {
+      const endpoint = `${imageProvider.endpoint}/generation/${imageProvider.model || 'stable-diffusion-xl-1024-v1-0'}/text-to-image`;
+      const body = {
+        text_prompts: [{ text: prompt, weight: 1 }, { text: 'blurry, low quality, background', weight: -1 }],
+        cfg_scale: 7,
+        height: 1024,
+        width: 1024,
+        samples: 1
+      };
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${imageProvider.apiKey}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error(`Stability AI error (${res.status}): ${await res.text()}`);
+      const data = await res.json();
+      const b64 = data.artifacts?.[0]?.base64;
+      if (!b64) throw new Error('No image data in Stability AI response');
+      return `data:image/png;base64,${b64}`;
+    }
+
+    default: {
+      return await generateWithPaperspaceSD(prompt, productType);
+    }
   }
 }

@@ -35,12 +35,16 @@ CREATE TABLE IF NOT EXISTS business_info (
 
 -- Create trigger for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$;
 
 DROP TRIGGER IF EXISTS update_business_info_updated_at ON business_info;
 CREATE TRIGGER update_business_info_updated_at 

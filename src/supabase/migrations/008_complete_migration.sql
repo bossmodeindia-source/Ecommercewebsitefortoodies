@@ -426,12 +426,16 @@ CREATE TABLE IF NOT EXISTS gifting_templates (
 -- TRIGGERS FOR UPDATED_AT
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$;
 
 -- Apply triggers to all tables with updated_at
 DO $$

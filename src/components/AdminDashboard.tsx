@@ -7,10 +7,11 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Package, Plus, Edit, Trash2, LogOut, ShoppingBag, Settings, Upload, X, Ticket, Users, Tag, MessageSquare, Bell, LayoutDashboard, TrendingUp, AlertTriangle, DollarSign, HeadphonesIcon, Building2, Palette, CheckCircle, Smartphone, Gift, Sparkles } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, LogOut, ShoppingBag, Settings, Upload, X, Ticket, Users, Tag, MessageSquare, Bell, LayoutDashboard, TrendingUp, AlertTriangle, DollarSign, HeadphonesIcon, Building2, Palette, CheckCircle, Smartphone, Gift, Sparkles, Database } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Product, ProductVariation } from '../types';
 import { storageUtils } from '../utils/storage';
+import { productsApi, ordersApi, userApi, authApi, categoriesApi } from '../utils/supabaseApi';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { OrderManagement } from './OrderManagement';
 import { AdminSettings } from './AdminSettings';
@@ -33,6 +34,8 @@ import { BillingCalculationSettings } from './BillingCalculationSettings';
 import { SupabasePhoneAuthSettings } from './SupabasePhoneAuthSettings';
 import { ProductModelStatus } from './ProductModelStatus';
 import { AIIntegrationSettings } from './AIIntegrationSettings';
+import { SupabaseSetupGuide } from './SupabaseSetupGuide';
+import { SupabaseDiagnostic } from './SupabaseDiagnostic';
 import { toast } from 'sonner@2.0.3';
 import { Badge } from './ui/badge';
 
@@ -45,6 +48,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [dbCategories, setDbCategories] = useState<string[]>([]);
 
   // Dashboard stats
   const [stats, setStats] = useState({
@@ -89,28 +93,110 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   useEffect(() => {
     loadProducts();
     loadStats();
+    loadCategories();
   }, []);
 
-  const loadProducts = () => {
+  const loadCategories = async () => {
+    try {
+      const cats = await categoriesApi.getAll();
+      if (cats && cats.length > 0) {
+        setDbCategories(cats.map((c: any) => c.name));
+        return;
+      }
+    } catch {}
+    setDbCategories(storageUtils.getCategories());
+  };
+
+  // Map Supabase product format → local Product type
+  const mapDbProduct = (dbProd: any): Product => {
+    const variations = dbProd.product_variations?.length
+      ? dbProd.product_variations.map((v: any) => ({
+          id: v.id,
+          color: v.color || '',
+          size: v.size || '',
+          price: (parseFloat(dbProd.base_price) || 0) + (parseFloat(v.additional_price) || 0),
+          stock: v.stock_quantity ?? v.stock ?? 0,
+          sku: v.sku,
+        }))
+      : (Array.isArray(dbProd.variations) ? dbProd.variations : []);
+
+    const imgs = Array.isArray(dbProd.images) ? dbProd.images
+      : (dbProd.image_url ? [dbProd.image_url] : []);
+
+    return {
+      id: dbProd.id,
+      name: dbProd.name || '',
+      description: dbProd.description || '',
+      category: dbProd.category || dbProd.category_id || '',
+      basePrice: parseFloat(dbProd.base_price) || 0,
+      variations,
+      images: imgs,
+      image: dbProd.image || imgs[0] || '',
+      gender: dbProd.gender || 'unisex',
+      printingMethods: dbProd.printing_methods || dbProd.printingMethods || [],
+      isActive: dbProd.is_active ?? true,
+      createdAt: dbProd.created_at || dbProd.createdAt || new Date().toISOString(),
+      allowPrepaid: dbProd.allow_prepaid ?? true,
+      allowPostpaid: dbProd.allow_postpaid ?? true,
+      partialPaymentPercentage: dbProd.partial_payment_percentage || 30,
+      codExtraCharge: dbProd.cod_extra_charge || 50,
+      customDesignAllowPostpaid: dbProd.custom_design_allow_postpaid ?? false,
+      customDesignPartialPaymentPercentage: dbProd.custom_design_partial_payment_percentage || 100,
+    };
+  };
+
+  const loadProducts = async () => {
+    try {
+      const dbProds = await productsApi.getAll();
+      if (dbProds && dbProds.length > 0) {
+        setProducts(dbProds.map(mapDbProduct));
+        return;
+      }
+    } catch (e: any) {
+      // Only show warning if it's NOT a connection error
+      if (!e.message?.includes('Failed to fetch')) {
+        console.warn('Supabase products fetch failed, using localStorage:', e);
+      }
+    }
     setProducts(storageUtils.getProducts());
   };
 
-  const loadStats = () => {
-    const totalProducts = storageUtils.getProducts().length;
-    const totalOrders = storageUtils.getOrders().length;
-    const totalCustomers = storageUtils.getUsers().length;
-    const totalRevenue = storageUtils.getOrders().reduce((acc, order) => acc + order.total, 0);
-    const pendingOrders = storageUtils.getOrders().filter(order => order.status === 'pending').length;
-    const lowStockProducts = storageUtils.getProducts().filter(product => product.variations.some(variation => variation.stock < 10)).length;
+  const loadStats = async () => {
+    try {
+      const [dbProds, dbOrders, dbCustomers] = await Promise.allSettled([
+        productsApi.getAll(),
+        ordersApi.getAll(),
+        userApi.getAllCustomers(),
+      ]);
 
-    setStats({
-      totalProducts,
-      totalOrders,
-      totalCustomers,
-      totalRevenue,
-      pendingOrders,
-      lowStockProducts,
-    });
+      const prods = dbProds.status === 'fulfilled' ? dbProds.value : storageUtils.getProducts();
+      const orders = dbOrders.status === 'fulfilled' ? dbOrders.value : storageUtils.getOrders();
+      const customers = dbCustomers.status === 'fulfilled' ? dbCustomers.value : storageUtils.getUsers();
+
+      const totalRevenue = orders.reduce((acc: number, o: any) => acc + (o.total || o.total_amount || 0), 0);
+      const pendingOrders = orders.filter((o: any) => (o.status || '').includes('pending')).length;
+      const lowStockProducts = prods.filter((p: any) =>
+        (p.product_variations || p.variations || []).some((v: any) => (v.stock_quantity || v.stock || 0) < 10)
+      ).length;
+
+      setStats({
+        totalProducts: prods.length,
+        totalOrders: orders.length,
+        totalCustomers: customers.length,
+        totalRevenue,
+        pendingOrders,
+        lowStockProducts,
+      });
+    } catch {
+      // Full localStorage fallback
+      const totalProducts = storageUtils.getProducts().length;
+      const totalOrders = storageUtils.getOrders().length;
+      const totalCustomers = storageUtils.getUsers().length;
+      const totalRevenue = storageUtils.getOrders().reduce((acc: number, order: any) => acc + order.total, 0);
+      const pendingOrders = storageUtils.getOrders().filter((o: any) => o.status === 'pending').length;
+      const lowStockProducts = storageUtils.getProducts().filter((p: any) => p.variations.some((v: any) => v.stock < 10)).length;
+      setStats({ totalProducts, totalOrders, totalCustomers, totalRevenue, pendingOrders, lowStockProducts });
+    }
   };
 
   const resetForm = () => {
@@ -216,7 +302,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name || !category || !basePrice || variations.length === 0) {
@@ -235,18 +321,62 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       images,
       variations,
       printingMethods,
-      createdAt: editingProduct?.createdAt || new Date().toISOString()
+      createdAt: editingProduct?.createdAt || new Date().toISOString(),
+      allowPrepaid,
+      allowPostpaid,
+      partialPaymentPercentage: parseFloat(partialPaymentPercentage),
+      codExtraCharge: parseFloat(codExtraCharge),
+      customDesignAllowPostpaid,
+      customDesignPartialPaymentPercentage: parseFloat(customDesignPartialPaymentPercentage),
     };
 
-    if (editingProduct) {
-      storageUtils.updateProduct(editingProduct.id, productData);
-      toast.success('Product updated successfully');
-    } else {
-      storageUtils.addProduct(productData);
-      toast.success('Product added successfully');
+    // Try Supabase first
+    try {
+      const supabasePayload = {
+        name: productData.name,
+        description: productData.description,
+        category: productData.category,
+        gender: productData.gender,
+        base_price: productData.basePrice,
+        images: productData.images,
+        image: productData.image,
+        printing_methods: productData.printingMethods,
+        is_active: true,
+        allow_prepaid: productData.allowPrepaid,
+        allow_postpaid: productData.allowPostpaid,
+        partial_payment_percentage: productData.partialPaymentPercentage,
+        cod_extra_charge: productData.codExtraCharge,
+        custom_design_allow_postpaid: productData.customDesignAllowPostpaid,
+        custom_design_partial_payment_percentage: productData.customDesignPartialPaymentPercentage,
+        variations: variations.map(v => ({
+          color: v.color,
+          size: v.size,
+          additional_price: v.price - productData.basePrice,
+          stock_quantity: v.stock,
+          sku: v.sku,
+        })),
+      };
+
+      if (editingProduct) {
+        await productsApi.update(editingProduct.id, supabasePayload);
+        toast.success('Product updated in Supabase ✓');
+      } else {
+        await productsApi.create(supabasePayload);
+        toast.success('Product added to Supabase ✓');
+      }
+    } catch (supabaseErr: any) {
+      console.warn('Supabase save failed, using localStorage:', supabaseErr.message);
+      // Fallback to localStorage
+      if (editingProduct) {
+        storageUtils.updateProduct(editingProduct.id, productData);
+        toast.success('Product updated (localStorage)');
+      } else {
+        storageUtils.addProduct(productData);
+        toast.success('Product added (localStorage)');
+      }
     }
 
-    loadProducts();
+    await loadProducts();
     resetForm();
     setIsAddDialogOpen(false);
   };
@@ -256,30 +386,43 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     setName(product.name);
     setDescription(product.description);
     setCategory(product.category);
-    setGender(product.gender);
+    setGender(product.gender || 'unisex');
     setBasePrice(product.basePrice.toString());
-    setImage(product.image);
-    setImages(product.images);
-    setVariations([...product.variations]);
-    setPrintingMethods([...product.printingMethods]);
+    setImage(product.image || '');
+    setImages(product.images || []);
+    setVariations([...(product.variations || [])]);
+    setPrintingMethods([...(product.printingMethods || [])]);
+    setAllowPrepaid(product.allowPrepaid ?? true);
+    setAllowPostpaid(product.allowPostpaid ?? true);
+    setPartialPaymentPercentage((product.partialPaymentPercentage ?? 30).toString());
+    setCodExtraCharge((product.codExtraCharge ?? 50).toString());
+    setCustomDesignAllowPostpaid(product.customDesignAllowPostpaid ?? false);
+    setCustomDesignPartialPaymentPercentage((product.customDesignPartialPaymentPercentage ?? 100).toString());
     setIsAddDialogOpen(true);
   };
 
-  const handleDelete = (productId: string) => {
+  const handleDelete = async (productId: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
-      storageUtils.deleteProduct(productId);
-      loadProducts();
-      toast.success('Product deleted');
+      try {
+        await productsApi.delete(productId);
+        toast.success('Product deleted from Supabase ✓');
+      } catch {
+        storageUtils.deleteProduct(productId);
+        toast.success('Product deleted');
+      }
+      await loadProducts();
     }
   };
 
   const handleLogout = () => {
+    authApi.logout().catch(() => {});
     storageUtils.logoutAdmin();
     onLogout();
   };
 
   const navTabs = [
     { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { value: 'diagnostic', label: 'Diagnostic', icon: AlertTriangle },
     { value: 'products', label: 'Catalog', icon: Package },
     { value: 'orders', label: 'Orders', icon: ShoppingBag },
     { value: 'customers', label: 'Customers', icon: Users },
@@ -300,6 +443,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     { value: 'gifting', label: 'Gifting', icon: Gift },
     { value: 'business', label: 'Enterprise', icon: Building2 },
     { value: 'settings', label: 'Security', icon: Settings },
+    { value: 'ai', label: 'AI Keys', icon: Sparkles },
+    { value: 'dbsetup', label: 'DB Setup', icon: Database },
   ];
 
   return (
@@ -358,7 +503,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#111] border-white/10 text-white">
-                          {storageUtils.getCategories().map((cat) => (
+                          {storageUtils.getCategories().concat(dbCategories.filter(c => !storageUtils.getCategories().includes(c))).map((cat) => (
                             <SelectItem key={cat} value={cat}>
                               {cat}
                             </SelectItem>
@@ -867,6 +1012,18 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           
           <TabsContent value="designorders">
             <AdminDesignOrders />
+          </TabsContent>
+
+          <TabsContent value="ai">
+            <AIIntegrationSettings />
+          </TabsContent>
+
+          <TabsContent value="dbsetup">
+            <SupabaseSetupGuide />
+          </TabsContent>
+
+          <TabsContent value="diagnostic">
+            <SupabaseDiagnostic />
           </TabsContent>
         </Tabs>
       </div>

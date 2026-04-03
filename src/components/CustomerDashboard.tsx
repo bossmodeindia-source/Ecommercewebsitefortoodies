@@ -25,6 +25,7 @@ import { User, Product, CartItem, Order, CustomDesign } from '../types';
 import { storageUtils } from '../utils/storage';
 import { notificationService } from '../utils/notifications';
 import { toast } from 'sonner@2.0.3';
+import { productsApi, authApi, cartApi } from '../utils/supabaseApi';
 
 import toodiesLogo from 'figma:asset/d31f1d417f75594ba1ab67a4c64ef32e85ec2234.png';
 
@@ -72,7 +73,8 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
   useEffect(() => {
     loadProducts();
     refreshUser();
-    
+    loadSupabaseCart();
+
     // Check for notifications
     const popups = storageUtils.getPopupMessages();
     const userPopups = popups.filter(p => 
@@ -92,6 +94,31 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
     filterProducts();
   }, [products, searchQuery, selectedCategory, selectedGender]);
 
+  /**
+   * On mount: try to pull cart from Supabase (cross-device persistence).
+   * Merges with any localStorage cart so items added before login aren't lost.
+   */
+  const loadSupabaseCart = async () => {
+    try {
+      const supabaseCart = await cartApi.getCart();
+      if (supabaseCart.length === 0) return; // nothing in Supabase, keep localStorage cart
+
+      // Merge: for items in Supabase, use those quantities; keep local-only items
+      setCart(prev => {
+        const merged = [...supabaseCart];
+        prev.forEach(localItem => {
+          const alreadySynced = merged.find(
+            s => s.productId === localItem.productId && s.variationId === localItem.variationId
+          );
+          if (!alreadySynced) merged.push(localItem); // local-only item (localStorage product)
+        });
+        return merged;
+      });
+    } catch {
+      // Silent — localStorage cart is already in state
+    }
+  };
+
   const refreshUser = () => {
     const updatedUser = storageUtils.getCurrentUser();
     if (updatedUser) {
@@ -100,7 +127,59 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
     }
   };
 
-  const loadProducts = () => {
+  // Map Supabase product format → local Product type
+  function mapDbProduct(dbProd: any): Product {
+    // product_variations join from Supabase
+    const variations = dbProd.product_variations?.length
+      ? dbProd.product_variations.map((v: any) => ({
+          id: v.id,
+          color: v.color || '',
+          size: v.size || '',
+          price: (parseFloat(dbProd.base_price) || 0) + (parseFloat(v.additional_price) || 0),
+          stock: v.stock_quantity ?? v.stock ?? 0,
+          sku: v.sku,
+        }))
+      : (Array.isArray(dbProd.variations) ? dbProd.variations : []);
+
+    const imgs = Array.isArray(dbProd.images) ? dbProd.images
+      : (dbProd.image_url ? [dbProd.image_url] : []);
+
+    return {
+      id: dbProd.id,
+      name: dbProd.name || '',
+      description: dbProd.description || '',
+      category: dbProd.category || dbProd.category_id || '',
+      basePrice: parseFloat(dbProd.base_price) || 0,
+      variations,
+      images: imgs,
+      image: imgs[0] || dbProd.image || '',
+      gender: dbProd.gender || 'unisex',
+      printingMethods: dbProd.printing_methods || dbProd.printingMethods || [],
+      isActive: dbProd.is_active ?? true,
+      createdAt: dbProd.created_at || dbProd.createdAt || new Date().toISOString(),
+      allowPrepaid: dbProd.allow_prepaid ?? true,
+      allowPostpaid: dbProd.allow_postpaid ?? true,
+      partialPaymentPercentage: dbProd.partial_payment_percentage || 30,
+      codExtraCharge: dbProd.cod_extra_charge || 50,
+      customDesignAllowPostpaid: dbProd.custom_design_allow_postpaid ?? false,
+      customDesignPartialPaymentPercentage: dbProd.custom_design_partial_payment_percentage || 100,
+    };
+  }
+
+  const loadProducts = async () => {
+    try {
+      const dbProducts = await productsApi.getAll();
+      if (dbProducts && dbProducts.length > 0) {
+        setProducts(dbProducts.map(mapDbProduct));
+        return;
+      }
+    } catch (e: any) {
+      // Only show warning if it's NOT a connection error
+      if (!e.message?.includes('Failed to fetch')) {
+        console.warn('Supabase products fetch failed, falling back to localStorage:', e);
+      }
+    }
+    // Fallback to localStorage
     const allProducts = storageUtils.getProducts();
     setProducts(allProducts);
   };
@@ -150,6 +229,13 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
     const updatedUser = { ...currentUser, cart: newCart };
     storageUtils.updateCurrentUser(updatedUser);
     setCurrentUser(updatedUser);
+
+    // Persist to Supabase (fire-and-forget, silent on failure)
+    const product   = products.find(p => p.id === productId);
+    const variation = product?.variations.find(v => v.id === variationId);
+    const newQty    = existingItemIndex >= 0 ? newCart[existingItemIndex].quantity : quantity;
+    cartApi.upsert(productId, variationId, newQty, variation?.price ?? 0);
+
     toast.success('Added to cart!');
   };
 
@@ -175,6 +261,12 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
     const updatedUser = { ...currentUser, cart: newCart };
     storageUtils.updateCurrentUser(updatedUser);
     setCurrentUser(updatedUser);
+
+    // Sync to Supabase
+    const variation = product.variations[0];
+    const newQty = existingItemIndex >= 0 ? newCart[existingItemIndex].quantity : 1;
+    cartApi.upsert(productId, variationId, newQty, variation?.price ?? 0);
+
     toast.success('Custom design added to cart!');
   };
 
@@ -190,6 +282,11 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
     const updatedUser = { ...currentUser, cart: newCart };
     storageUtils.updateCurrentUser(updatedUser);
     setCurrentUser(updatedUser);
+
+    // Sync updated quantity to Supabase
+    const product   = products.find(p => p.id === productId);
+    const variation = product?.variations.find(v => v.id === variationId);
+    cartApi.upsert(productId, variationId, quantity, variation?.price ?? 0);
   };
 
   const handleRemoveItem = (productId: string, variationId: string) => {
@@ -200,6 +297,10 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
     const updatedUser = { ...currentUser, cart: newCart };
     storageUtils.updateCurrentUser(updatedUser);
     setCurrentUser(updatedUser);
+
+    // Remove from Supabase
+    cartApi.removeByProduct(productId, variationId);
+
     toast.success('Removed from cart');
   };
 
@@ -209,8 +310,12 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
       return;
     }
 
-    if (!currentUser.emailVerified || !currentUser.mobileVerified) {
-      toast.error('Please verify your email and mobile number before placing an order');
+    // Accept both camelCase (app) and snake_case (Supabase-mapped) verification flags
+    const isEmailVerified = currentUser.emailVerified || (currentUser as any).email_verified || false;
+    const isMobileVerified = currentUser.mobileVerified ?? true; // default true for Supabase users
+
+    if (!isEmailVerified) {
+      toast.error('Please verify your email before placing an order');
       setActiveTab('profile');
       return;
     }
@@ -236,8 +341,9 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
 
   // Handle Buy Now for individual item from cart
   const handleBuyNow = (productId: string, variationId: string) => {
-    if (!currentUser.emailVerified || !currentUser.mobileVerified) {
-      toast.error('Please verify your email and mobile number before placing an order');
+    const isEmailVerified = currentUser.emailVerified || (currentUser as any).email_verified || false;
+    if (!isEmailVerified) {
+      toast.error('Please verify your email before placing an order');
       setActiveTab('profile');
       return;
     }
@@ -321,9 +427,13 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
         item => !purchasedItemIds.includes(`${item.productId}-${item.variationId}`)
       );
       setOriginalCart(null);
+      // Remove only the purchased items from Supabase cart
+      cart.forEach(item => cartApi.removeByProduct(item.productId, item.variationId));
     } else {
       // This was Checkout All - clear the entire cart
       finalCart = [];
+      // Clear Supabase cart entirely
+      cartApi.clearAll();
     }
     
     // Update cart in storage and state
@@ -361,6 +471,7 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
   };
 
   const handleLogout = () => {
+    authApi.logout().catch(() => {});
     storageUtils.logoutUser();
     onLogout();
   };

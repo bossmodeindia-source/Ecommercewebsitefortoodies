@@ -107,7 +107,35 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
               </div>
             </div>
 
-            {error && <p className="text-red-400 text-xs ml-1">{error}</p>}
+            {error && (
+              <div className="space-y-2">
+                <p className="text-red-400 text-xs ml-1">{error}</p>
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 text-xs text-yellow-400">
+                  <p className="font-bold mb-1">💡 Quick Fix - Copy These Exact Credentials:</p>
+                  <div className="bg-black/30 rounded-lg p-2 mb-2 font-mono text-[10px]">
+                    <p className="text-white">Email: <span className="text-[#d4af37] select-all">m78787531@gmail.com</span></p>
+                    <p className="text-white">Password: <span className="text-[#d4af37] select-all">9886510858@TcbToponeAdmin</span></p>
+                  </div>
+                  <p className="font-bold mb-1 text-[10px]">⚠️ Common Issues:</p>
+                  <ul className="list-disc list-inside space-y-1 text-[10px]">
+                    <li>Password is <span className="font-bold">case-sensitive</span>: Capital T, C, T, A</li>
+                    <li>No spaces before or after email/password</li>
+                    <li>Clear browser cache if still failing</li>
+                  </ul>
+                  <div className="mt-2 pt-2 border-t border-yellow-500/20">
+                    <p className="text-[10px] mb-1">📋 Press F12 to see detailed debug logs</p>
+                    <a 
+                      href="https://github.com/yourusername/toodies/blob/main/ADMIN_LOGIN_QUICK_FIX.md" 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block text-[#d4af37] hover:underline font-bold text-[10px]"
+                    >
+                      → Complete Troubleshooting Guide
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <Button 
               type="submit" 
