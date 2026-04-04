@@ -5,6 +5,7 @@ import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsAndConditions } from './components/TermsAndConditions';
 import { TwoDStudioPage } from './components/TwoDStudioPage';
 import { SupabaseConnectionBanner } from './components/SupabaseConnectionBanner';
+import { DatabaseSetupGuide } from './components/DatabaseSetupGuide';
 import { GoogleAnalytics, FacebookPixel } from './components/SEOHead';
 import { User, CustomDesign } from './types';
 import { Sparkles, ShoppingBag, Palette, Phone, Mail, MapPin, MessageCircle, Users, Facebook, Instagram, Twitter, Linkedin, Shield } from 'lucide-react';
@@ -30,6 +31,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [businessInfo, setBusinessInfo] = useState<any>({});
   const [adminSettings, setAdminSettings] = useState<any>({});
+  const [databaseTablesExist, setDatabaseTablesExist] = useState(true);
 
   // Load business info and settings on mount
   useEffect(() => {
@@ -40,10 +42,12 @@ export default function App() {
         
         if (business && Object.keys(business).length > 0) {
           setBusinessInfo(business);
+          setDatabaseTablesExist(true);
           console.log('✅ Loaded business data from Supabase');
         } else {
           console.error('❌ Database tables not found');
           console.error('📋 Run: /database/fresh-setup-v2.sql in Supabase SQL Editor');
+          setDatabaseTablesExist(false);
           // Set default business info
           setBusinessInfo({
             companyName: 'Toodies',
@@ -61,8 +65,15 @@ export default function App() {
             socialMedia: {}
           });
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Error loading business data from Supabase:', error);
+        
+        // Check if it's a "table not found" error
+        if (error?.message?.includes('relation') || error?.message?.includes('does not exist')) {
+          console.error('🔧 Database tables need to be created');
+          setDatabaseTablesExist(false);
+        }
+        
         // Set default business info
         setBusinessInfo({
           companyName: 'Toodies',
@@ -252,6 +263,16 @@ export default function App() {
       <>
         <Toaster />
         <TermsAndConditions onBack={goToLanding} />
+      </>
+    );
+  }
+
+  // Show Database Setup Guide if tables are missing
+  if (!databaseTablesExist) {
+    return (
+      <>
+        <Toaster />
+        <DatabaseSetupGuide />
       </>
     );
   }

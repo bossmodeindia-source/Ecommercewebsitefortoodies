@@ -26,7 +26,6 @@ declare global {
  */
 
 const getSupabaseClient = () => {
-  // Create client only once per page load
   if (!globalThis.__supabaseClientInitialized) {
     try {
       const client = createClient(
@@ -41,67 +40,23 @@ const getSupabaseClient = () => {
           },
           global: {
             headers: {
-              'x-client-info': 'toodies-app'
-            }
-          }
+              'x-client-info': 'toodies-app',
+            },
+          },
         }
       );
-      
+
       globalThis.__supabaseClient = client;
       globalThis.__supabaseClientInitialized = true;
-      
+
       console.log('✅ Supabase client initialized for project:', projectId);
-      
-      // Test connection (async - doesn't block)
-      setTimeout(async () => {
-        try {
-          const { error } = await globalThis.__supabaseClient
-            .from('users')
-            .select('id')
-            .limit(1);
-          
-          if (error) {
-            if (error.message?.includes('Failed to fetch') || error.message?.includes('fetch')) {
-              console.error('❌ SUPABASE CONNECTION ERROR: Cannot reach database');
-              console.error('');
-              console.error('🔧 TO FIX:');
-              console.error('1. Check if project is paused: https://supabase.com/dashboard/project/mvehfbmjtycgnzahffod');
-              console.error('2. If paused, click "Resume Project" (takes ~2 minutes)');
-              console.error('3. Refresh this page after project resumes');
-              console.error('');
-              console.error('⚠️ App features will not work until Supabase is connected.');
-            } else if (error.message?.includes('infinite recursion')) {
-              console.error('❌ DATABASE ERROR: Row Level Security policies have infinite recursion');
-              console.error('📝 Fix: Run the SQL script in /database/fresh-setup-v2.sql in your Supabase SQL Editor');
-            } else if (error.message?.includes('relation') && error.message?.includes('does not exist')) {
-              console.error('❌ DATABASE TABLES NOT FOUND');
-              console.error('');
-              console.error('🔧 TO FIX:');
-              console.error('1. Open: /database/fresh-setup-v2.sql');
-              console.error('2. Copy all SQL code');
-              console.error('3. Go to: https://supabase.com/dashboard/project/mvehfbmjtycgnzahffod/editor');
-              console.error('4. Paste and run SQL');
-              console.error('5. Refresh this page');
-            } else {
-              console.error('❌ Database connection issue:', error.message);
-            }
-          } else {
-            console.log('✅ Supabase database connection verified');
-            console.log('🔥 Using Supabase for all data persistence');
-          }
-        } catch (e: any) {
-          console.error('❌ Supabase connection test failed:', e.message);
-          console.error('⚠️ App features will not work until Supabase is connected.');
-        }
-      }, 1000);
-      
+
     } catch (error) {
       console.error('❌ Failed to initialize Supabase client:', error);
-      throw error; // Don't create mock client - let errors propagate
-    }
-      globalThis.__supabaseClientInitialized = true;
+      throw error;
     }
   }
+
   return globalThis.__supabaseClient;
 };
 
