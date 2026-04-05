@@ -36,8 +36,8 @@ export default defineConfig({
   },
 
   build: {
-    // !! Must match netlify.toml publish directory !!
-    outDir: 'dist',
+  // !! Must match netlify.toml publish directory !!
+  outDir: 'dist',
     emptyOutDir: true,
     sourcemap: false,
     minify: 'esbuild',
