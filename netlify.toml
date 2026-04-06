@@ -5,9 +5,9 @@
 
   [build.environment]
     NODE_VERSION           = "20"
-    NODE_ENV               = "production"
     CI                     = "false"
     SKIP_PREFLIGHT_CHECK   = "true"
+    NPM_FLAGS              = "--include=dev"
 
 [[redirects]]
   from   = "/*"
