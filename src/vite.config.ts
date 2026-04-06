@@ -24,17 +24,20 @@ function figmaAssetPlugin() {
 export default defineConfig({
   plugins: [react(), figmaAssetPlugin()],
 
- resolve: {
-  alias: {
-    '@': path.resolve(__dirname, './'),
-    'sonner@2.0.3': 'sonner',
-    'react-hook-form@7.55.0': 'react-hook-form',
-  }
-},
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './'),
+      // ─── Figma Make uses versioned specifiers that don't exist as real npm
+      //     package names. Map each one to the actual installed package so
+      //     Vite (and Rollup) can resolve them during production builds. ───
+      'sonner@2.0.3': 'sonner',
+      'react-hook-form@7.55.0': 'react-hook-form',
+    }
+  },
 
   build: {
-  // !! Must match netlify.toml publish directory !!
-  outDir: 'dist',
+    // !! Must match netlify.toml publish directory !!
+    outDir: 'dist',
     emptyOutDir: true,
     sourcemap: false,
     minify: 'esbuild',

@@ -1,0 +1,106 @@
+11:32:16 PM: build-image version: 37c27078fd36bc14c3fa8836175bd77aa6640872 (noble-new-builds)
+11:32:16 PM: buildbot version: ee2c327a2718c921510fd736205acbb9fe49aa61
+11:32:16 PM: Fetching cached dependencies
+11:32:16 PM: Failed to fetch cache, continuing with build
+11:32:16 PM: Starting to prepare the repo for build
+11:32:17 PM: No cached dependencies found. Cloning fresh repo
+11:32:17 PM: git clone --filter=blob:none https://github.com/bossmodeindia-source/Ecommercewebsitefortoodies
+11:32:17 PM: Preparing Git Reference refs/heads/main
+11:32:18 PM: Installing dependencies
+11:32:18 PM: mise ~/.config/mise/config.toml tools: python@3.14.3
+11:32:18 PM: mise ~/.config/mise/config.toml tools: ruby@3.4.8
+11:32:19 PM: mise ~/.config/mise/config.toml tools: go@1.26.1
+11:32:19 PM: v22.22.2 is already installed.
+11:32:19 PM: Now using node v22.22.2 (npm v10.9.7)
+11:32:20 PM: Enabling Node.js Corepack
+11:32:20 PM: No npm workspaces detected
+11:32:20 PM: Installing npm packages using npm version 10.9.7
+11:32:39 PM: npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+11:32:39 PM: added 317 packages in 19s
+11:32:39 PM: npm packages installed
+11:32:39 PM: Successfully installed dependencies
+11:32:40 PM: Detected 2 framework(s)
+11:32:40 PM: "vite" at version "6.3.5"
+11:32:40 PM: "hono" at version "4.12.10"
+11:32:40 PM: Starting build script
+11:32:40 PM: Section completed: initializing
+Building
+Complete
+11:32:42 PM: Netlify Build                                                 
+11:32:42 PM: ────────────────────────────────────────────────────────────────
+11:32:42 PM: ​
+11:32:42 PM: ❯ Version
+11:32:42 PM:   @netlify/build 35.11.2
+11:32:42 PM: ​
+11:32:42 PM: ❯ Flags
+11:32:42 PM:   accountId: 69cfb1fd10b811253acd62c2
+11:32:42 PM:   baseRelDir: true
+11:32:42 PM:   buildId: 69d2a3a7da165c0008d3e441
+11:32:42 PM:   deployId: 69d2a3a7da165c0008d3e443
+11:32:42 PM: ​
+11:32:42 PM: ❯ Current directory
+11:32:42 PM:   /opt/build/repo
+11:32:42 PM: ​
+11:32:42 PM: ❯ Config file
+11:32:42 PM:   No config file was defined: using default values.
+11:32:42 PM: ​
+11:32:42 PM: ❯ Context
+11:32:42 PM:   production
+11:32:42 PM: ​
+11:32:42 PM: Build command from Netlify app                                
+11:32:42 PM: ────────────────────────────────────────────────────────────────
+11:32:42 PM: ​
+11:32:42 PM: $ npm run build
+11:32:43 PM: > E-commerce website for Toodies@0.1.0 build
+11:32:43 PM: > vite build
+11:32:43 PM: vite v6.3.5 building for production...
+11:32:43 PM: transforming...
+11:32:50 PM: ✓ 2458 modules transformed.
+11:32:50 PM: rendering chunks...
+11:32:51 PM: [plugin vite:reporter]
+11:32:51 PM: (!) /opt/build/repo/src/utils/supabaseApi.ts is dynamically imported by /opt/build/repo/src/components/Advanced2DDesigner.tsx, /opt/build/repo/src/utils/aiDesignGenerator.ts, /opt/build/repo/src/utils/aiDesignGenerator.ts but also statically imported by /opt/build/repo/src/App.tsx, /opt/build/repo/src/components/AIIntegrationSettings.tsx, /opt/build/repo/src/components/AdminDashboard.tsx, /opt/build/repo/src/components/AdminDesignApproval.tsx, /opt/build/repo/src/components/AdminDesignOrders.tsx, /opt/build/repo/src/components/AdminLogin.tsx, /opt/build/repo/src/components/AdminSettings.tsx, /opt/build/repo/src/components/Advanced2DDesigner.tsx, /opt/build/repo/src/components/CustomerAuth.tsx, /opt/build/repo/src/components/CustomerDashboard.tsx, /opt/build/repo/src/components/DesignCheckoutModal.tsx, /opt/build/repo/src/components/OrderManagement.tsx, /opt/build/repo/src/components/StudioMyCustomDesigns.tsx, dynamic import will not move module into another chunk.
+11:32:51 PM: 
+11:32:51 PM: computing gzip size...
+11:32:51 PM: build/index.html                                                        0.45 kB │ gzip:   0.28 kB
+11:32:51 PM: build/assets/c561690211cdd59869b2af6c111db0bf09f362da-N0pYf1Q8.png     56.36 kB
+11:32:51 PM: build/assets/404faa741eb4394d917a24330c1566de438eea2b-Br9zz-wv.png     81.96 kB
+11:32:51 PM: build/assets/index-DJxFpPN-.css                                         6.63 kB │ gzip:   1.83 kB
+11:32:51 PM: build/assets/purify.es-BgtpMKW3.js                                     22.77 kB │ gzip:   8.79 kB
+11:32:51 PM: build/assets/index.es-DBfbFpEl.js                                     159.59 kB │ gzip:  53.51 kB
+11:32:51 PM: build/assets/html2canvas.esm-B0tyYwQk.js                              202.36 kB │ gzip:  48.04 kB
+11:32:51 PM: build/assets/index-DMlguiDk.js                                      1,952.38 kB │ gzip: 533.36 kB
+11:32:51 PM: 
+11:32:51 PM: (!) Some chunks are larger than 500 kB after minification. Consider:
+11:32:51 PM: - Using dynamic import() to code-split the application
+11:32:51 PM: - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+11:32:51 PM: - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+11:32:51 PM: ✓ built in 8.03s
+11:32:51 PM: ​
+11:32:51 PM: (build.command completed in 8.6s)
+11:32:51 PM: ​
+11:32:52 PM: Finished processing build request in 35.595s
+Deploying
+Failed
+11:32:51 PM: Failed during stage 'building site': Build script returned non-zero exit code: 2 (https://ntl.fyi/exit-code-2)
+11:32:51 PM: Deploy site                                                   
+11:32:51 PM: ────────────────────────────────────────────────────────────────
+11:32:51 PM: ​
+11:32:51 PM: Section completed: deploying
+11:32:51 PM: ​
+11:32:51 PM: Configuration error                                           
+11:32:51 PM: ────────────────────────────────────────────────────────────────
+11:32:51 PM: ​
+11:32:51 PM:   Error message
+11:32:51 PM:   Deploy did not succeed: Deploy directory 'dist' does not exist
+11:32:51 PM: ​
+11:32:51 PM:   Resolved config
+11:32:51 PM:   build:
+11:32:51 PM:     command: npm run build
+11:32:51 PM:     commandOrigin: ui
+11:32:51 PM:     environment:
+11:32:51 PM:       - VITE_SUPABASE_ANON_KEY
+11:32:51 PM:       - VITE_SUPABASE_URL
+11:32:51 PM:     publish: /opt/build/repo/dist
+11:32:51 PM:     publishOrigin: ui
+11:32:51 PM: Build failed due to a user error: Build script returned non-zero exit code: 2
+11:32:51 PM: Failing build: Failed to build site
