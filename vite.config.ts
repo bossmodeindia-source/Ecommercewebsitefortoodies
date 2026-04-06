@@ -58,6 +58,47 @@
     build: {
       target: 'esnext',
       outDir: 'dist',
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) {
+              return;
+            }
+
+            if (
+              id.includes('/@supabase/') ||
+              id.includes('/@jsr/supabase__supabase-js/')
+            ) {
+              return 'supabase-vendor';
+            }
+
+            if (id.includes('/@radix-ui/')) {
+              return 'radix-vendor';
+            }
+
+            if (
+              id.includes('/embla-carousel-react/') ||
+              id.includes('/recharts/') ||
+              id.includes('/three/')
+            ) {
+              return 'graphics-vendor';
+            }
+
+            if (id.includes('/lucide-react/')) {
+              return 'icons-vendor';
+            }
+
+            if (
+              id.includes('/jspdf/') ||
+              id.includes('/html2canvas/') ||
+              id.includes('/jszip/')
+            ) {
+              return 'export-vendor';
+            }
+          },
+        },
+      },
+      chunkSizeWarningLimit: 1000,
     },
     server: {
       port: 3000,
