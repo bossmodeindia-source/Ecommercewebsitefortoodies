@@ -153,6 +153,20 @@ export const storageUtils = {
     const msgs = readKey<any[]>('toodies_popup_messages', []);
     writeKey('toodies_popup_messages', [...msgs, msg]);
   },
+  updatePopupMessage: (id: string, updatedMsg: any) => {
+    const msgs = readKey<any[]>('toodies_popup_messages', []);
+    const idx = msgs.findIndex((m: any) => m.id === id);
+    if (idx >= 0) {
+      msgs[idx] = updatedMsg;
+    } else {
+      msgs.push(updatedMsg);
+    }
+    writeKey('toodies_popup_messages', msgs);
+  },
+  deletePopupMessage: (id: string) => {
+    const msgs = readKey<any[]>('toodies_popup_messages', []).filter((m: any) => m.id !== id);
+    writeKey('toodies_popup_messages', msgs);
+  },
 
   // ── Chat conversations (Supabase is primary) ─────────────────────────
   getChatConversations: (): any[] => readKey('toodies_chat_conversations', []),
@@ -167,10 +181,17 @@ export const storageUtils = {
     }
     writeKey('toodies_chat_conversations', convs);
   },
-  updateChatConversation: (conv: any) => {
+  updateChatConversation: (idOrConv: string | any, updatedConv?: any) => {
     const convs = readKey<any[]>('toodies_chat_conversations', []);
-    const idx = convs.findIndex((c: any) => c.id === conv.id);
-    if (idx >= 0) convs[idx] = conv;
+    // Support both (id, conv) and (conv) signatures
+    if (typeof idOrConv === 'string' && updatedConv) {
+      const idx = convs.findIndex((c: any) => c.id === idOrConv);
+      if (idx >= 0) convs[idx] = updatedConv;
+    } else {
+      const conv = idOrConv;
+      const idx = convs.findIndex((c: any) => c.id === conv.id);
+      if (idx >= 0) convs[idx] = conv;
+    }
     writeKey('toodies_chat_conversations', convs);
   },
 
@@ -220,6 +241,7 @@ export const storageUtils = {
 
   // ── Orders (Supabase is primary; stub returns [] for safety) ─────────
   getOrders: (): any[] => readKey('toodies_orders', []),
+  saveOrders: (orders: any[]) => writeKey('toodies_orders', orders),
   createOrder: (order: any) => {
     const orders = readKey<any[]>('toodies_orders', []);
     writeKey('toodies_orders', [...orders, { ...order, id: order.id || Date.now().toString() }]);
@@ -231,6 +253,7 @@ export const storageUtils = {
 
   // ── Users / Auth (Supabase Auth is primary) ──────────────────────────
   getUsers: (): any[] => readKey('toodies_users', []),
+  saveUsers: (users: any[]) => writeKey('toodies_users', users),
   getCurrentUser: (): any | null => readKey('toodies_user', null),
   updateCurrentUser: (user: any) => {
     writeKey('toodies_user', user);
@@ -271,9 +294,37 @@ export const storageUtils = {
     writeKey('toodies_coupons', coupons);
   },
 
+  // ── AI Config (localStorage only) ────────────────────────────────────
+  getAIConfig: (): any => readKey('toodies_ai_config', {
+    isEnabled: false,
+    enabled: false,
+    autoReply: false,
+    greetingMessage: 'Hello! How can I help you today?',
+    provider: 'openai',
+  }),
+  saveAIConfig: (config: any) => writeKey('toodies_ai_config', config),
+
   // ── Message templates (Supabase is primary) ──────────────────────────
   getMessageTemplates: (): any[] => readKey('toodies_message_templates', []),
   saveMessageTemplates: (templates: any[]) => writeKey('toodies_message_templates', templates),
+  addMessageTemplate: (template: any) => {
+    const templates = readKey<any[]>('toodies_message_templates', []);
+    writeKey('toodies_message_templates', [...templates, template]);
+  },
+  updateMessageTemplate: (id: string, updatedTemplate: any) => {
+    const templates = readKey<any[]>('toodies_message_templates', []);
+    const idx = templates.findIndex((t: any) => t.id === id);
+    if (idx >= 0) {
+      templates[idx] = updatedTemplate;
+    } else {
+      templates.push(updatedTemplate);
+    }
+    writeKey('toodies_message_templates', templates);
+  },
+  deleteMessageTemplate: (id: string) => {
+    const templates = readKey<any[]>('toodies_message_templates', []).filter((t: any) => t.id !== id);
+    writeKey('toodies_message_templates', templates);
+  },
 
   // ── 3D Model configs (Supabase is primary) ───────────────────────────
   get3DModelConfigs: (): any[] => readKey('toodies_3d_model_configs', []),

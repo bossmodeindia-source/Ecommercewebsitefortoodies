@@ -6,7 +6,6 @@ import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { LogIn, UserPlus, Mail, Phone, Lock, User as UserIcon, KeyRound, ArrowLeft, FileText, CheckCircle, Sparkles, ShieldCheck, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { storageUtils } from '../utils/storage';
 import { toast } from 'sonner@2.0.3';
 import { User } from '../types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
@@ -43,18 +42,7 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
       toast.success('Access Granted. Welcome back to the Toodies experience.');
       onLogin(result.user);
     } catch (supabaseError: any) {
-      // Fallback to localStorage
-      try {
-        const user = storageUtils.loginUser(loginEmail, loginPassword);
-        if (user) {
-          toast.success('Access Granted. Welcome back to the Toodies experience.');
-          onLogin(user);
-        } else {
-          toast.error(supabaseError?.message || 'Authentication failed. Please verify your credentials.');
-        }
-      } catch {
-        toast.error(supabaseError?.message || 'Authentication failed. Please verify your credentials.');
-      }
+      toast.error(supabaseError?.message || 'Authentication failed. Please verify your credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -81,19 +69,7 @@ export function CustomerAuth({ onLogin, onPrivacyClick, onTermsClick }: Customer
       toast.success('Membership activated. Welcome to the world of Toodies.');
       onLogin(result.user);
     } catch (supabaseError: any) {
-      // Fallback to localStorage
-      try {
-        const users = storageUtils.getUsers();
-        if (users.some((u: any) => u.email === signupEmail || u.mobile === signupMobile)) {
-          toast.error('This identity is already associated with an account.');
-          return;
-        }
-        const user = storageUtils.registerUser(signupEmail, signupMobile, signupPassword, signupName);
-        toast.success('Membership activated. Welcome to the world of Toodies.');
-        onLogin(user);
-      } catch {
-        toast.error(supabaseError?.message || 'Registration failed. Please try again.');
-      }
+      toast.error(supabaseError?.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

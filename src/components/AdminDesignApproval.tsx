@@ -92,9 +92,7 @@ export function AdminDesignApproval() {
       });
       
       setDesigns(transformedDesigns);
-      console.log('📦 Loaded designs from Supabase for approval:', transformedDesigns.length);
     } catch (error) {
-      console.error('Failed to load designs from Supabase:', error);
       // Silently fall back to empty designs - don't show error toast
       setDesigns([]);
     }
@@ -186,7 +184,6 @@ export function AdminDesignApproval() {
         }
       );
     } catch (error: any) {
-      console.error('Failed to update design:', error);
       toast.error('Failed to update design', {
         description: error.message || 'Please try again'
       });
@@ -443,7 +440,6 @@ export function AdminDesignApproval() {
         description: fileName
       });
     } catch (error) {
-      console.error('PDF generation error:', error);
       toast.error('Failed to generate PDF', { id: 'pdf-download' });
     }
   };

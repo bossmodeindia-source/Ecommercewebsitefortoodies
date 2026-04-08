@@ -79,10 +79,8 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
       transformedDesigns.sort((a, b) => b.timestamp - a.timestamp);
       
       setDesigns(transformedDesigns);
-      console.log('📦 Loaded designs from Supabase:', transformedDesigns.length);
     } catch (error) {
-      console.error('Failed to load designs from Supabase:', error);
-      // Silently fall back to empty designs - don't show error toast
+      // Silently fall back to empty designs
       setDesigns([]);
     } finally {
       setLoading(false);
@@ -98,7 +96,7 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
       setDesigns(prev => prev.filter(d => d.id !== designId));
       toast.success('Design deleted');
     } catch (error) {
-      console.error('Failed to delete design:', error);
+
       toast.error('Failed to delete design');
     }
   };
@@ -150,7 +148,7 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
         description: 'Your order has been placed'
       });
     } catch (error) {
-      console.error('Payment processing error:', error);
+
       toast.error('Failed to process payment');
     } finally {
       setShowPaymentDialog(false);
@@ -182,7 +180,7 @@ export function StudioMyCustomDesigns({ onEditDesign }: StudioMyCustomDesignsPro
         description: '2400x2400 PNG ready for printing'
       });
     } catch (error) {
-      console.error('Download failed:', error);
+
       toast.error('Failed to generate export');
     }
   };

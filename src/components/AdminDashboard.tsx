@@ -36,7 +36,6 @@ import { SupabasePhoneAuthSettings } from './SupabasePhoneAuthSettings';
 import { ProductModelStatus } from './ProductModelStatus';
 import { AIIntegrationSettings } from './AIIntegrationSettings';
 import { SupabaseSetupGuide } from './SupabaseSetupGuide';
-import { SupabaseDiagnostic } from './SupabaseDiagnostic';
 import { toast } from 'sonner@2.0.3';
 import { Badge } from './ui/badge';
 
@@ -153,11 +152,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         setProducts(dbProds.map(mapDbProduct));
         return;
       }
-    } catch (e: any) {
-      // Only show warning if it's NOT a connection error
-      if (!e.message?.includes('Failed to fetch')) {
-        console.warn('Supabase products fetch failed, using localStorage:', e);
-      }
+    } catch {
+      // silent — fall back to localStorage
     }
     setProducts(storageUtils.getProducts());
   };
@@ -366,7 +362,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         toast.success('Product added to Supabase ✓');
       }
     } catch (supabaseErr: any) {
-      console.warn('Supabase save failed, using localStorage:', supabaseErr.message);
+
       // Fallback to localStorage
       if (editingProduct) {
         storageUtils.updateProduct(editingProduct.id, productData);
@@ -423,7 +419,6 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   const navTabs = [
     { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { value: 'diagnostic', label: 'Diagnostic', icon: AlertTriangle },
     { value: 'products', label: 'Catalog', icon: Package },
     { value: 'orders', label: 'Orders', icon: ShoppingBag },
     { value: 'customers', label: 'Customers', icon: Users },
@@ -1028,9 +1023,6 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             <SupabaseSetupGuide />
           </TabsContent>
 
-          <TabsContent value="diagnostic">
-            <SupabaseDiagnostic />
-          </TabsContent>
         </Tabs>
       </div>
     </div>

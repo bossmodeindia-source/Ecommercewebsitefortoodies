@@ -170,12 +170,8 @@ export function DesignCheckoutModal({
         status: 'submitted',
       };
 
-      console.log('📤 Submitting design for approval:', designSubmissionData);
-
       // Submit to Supabase
       const savedDesign = await designsApi.save(designSubmissionData);
-
-      console.log('✅ Design submitted successfully:', savedDesign);
 
       toast.success('Design submitted for approval!', {
         description: 'Admin will review your design and you\'ll be notified once approved.'
@@ -194,7 +190,6 @@ export function DesignCheckoutModal({
       }, 2500);
 
     } catch (error: any) {
-      console.error('❌ Error submitting design:', error);
       toast.error('Failed to submit design', {
         description: error.message || 'Please try again later'
       });

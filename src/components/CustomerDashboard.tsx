@@ -172,11 +172,8 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
         setProducts(dbProducts.map(mapDbProduct));
         return;
       }
-    } catch (e: any) {
-      // Only show warning if it's NOT a connection error
-      if (!e.message?.includes('Failed to fetch')) {
-        console.warn('Supabase products fetch failed, falling back to localStorage:', e);
-      }
+    } catch {
+      // silent — fall back below
     }
     // Fallback to localStorage
     const allProducts = storageUtils.getProducts();
@@ -477,20 +474,9 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
 
   const handleDesignerClick = () => {
     // Get products that have 2D model configurations
-    console.log('=== CHECKING FOR 2D MODEL CONFIGURATIONS ===');
-    console.log('Total products:', products.length);
-    
-    const allConfigs = storageUtils.get3DModelConfigs();
-    console.log('All 2D model configs:', allConfigs);
-    
-    const productsWithModels = products.filter(p => {
-      console.log(`Checking product ID: ${p.id}`);
-      const config = storageUtils.get3DModelConfigByProductId(p.id);
-      console.log(`Config for product ${p.id}:`, config);
-      return config !== null;
-    });
-
-    console.log('Products with models:', productsWithModels);
+    const productsWithModels = products.filter(p =>
+      storageUtils.get3DModelConfigByProductId(p.id) !== null
+    );
 
     if (productsWithModels.length === 0) {
       toast.error('No products configured for 2D design yet', {
@@ -625,9 +611,9 @@ export function CustomerDashboard({ user, onLogout, onOpen2DStudio }: CustomerDa
                   </motion.span>
                 )}
               </AnimatePresence>
-              {item.id === 'orders' && currentUser.orders.length > 0 && isSidebarOpen && (
+              {item.id === 'orders' && (currentUser.orders?.length ?? 0) > 0 && isSidebarOpen && (
                 <Badge className="ml-auto bg-[#d4af37]/20 text-[#d4af37] border-0 h-5 px-1.5 text-[10px]">
-                  {currentUser.orders.length}
+                  {currentUser.orders?.length}
                 </Badge>
               )}
             </button>

@@ -131,7 +131,7 @@ export function AdminSettings() {
         setBackgroundRemovalApiKey(supabaseSettings.background_removal_api_key || '');
         setBackgroundRemovalEnabled(supabaseSettings.background_removal_enabled || false);
         
-        console.log('✅ Settings loaded from Supabase');
+
       } else {
         // Fallback to localStorage if Supabase is empty
         const settings = storageUtils.getAdminSettings();
@@ -187,19 +187,16 @@ export function AdminSettings() {
         setBackgroundRemovalApiKey(settings.backgroundRemovalApiKey || '');
         setBackgroundRemovalEnabled(settings.backgroundRemovalEnabled || false);
         
-        console.log('⚠️ Settings loaded from localStorage (fallback)');
+
       }
     } catch (error: any) {
       // Only log and show error if it's not a network/fetch error (expected on initial load)
       const isFetchError = error?.message?.includes('fetch') || error?.message?.includes('Failed to fetch') || error?.name === 'TypeError';
       
       if (!isFetchError) {
-        console.error('❌ Failed to load settings from Supabase:', error);
         toast.error('Failed to load settings', {
           description: 'Using local settings as fallback'
         });
-      } else {
-        console.log('⚠️ Supabase connection initializing, using localStorage');
       }
       
       // Fallback to localStorage on error
@@ -359,7 +356,6 @@ export function AdminSettings() {
       
       setTimeout(() => setIsSaved(false), 2000);
     } catch (error: any) {
-      console.error('❌ Failed to save settings:', error);
       toast.error('Failed to save settings', {
         description: error.message || 'Please try again'
       });

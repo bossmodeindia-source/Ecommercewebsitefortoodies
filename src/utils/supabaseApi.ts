@@ -53,10 +53,7 @@ const getSupabaseClient = () => {
       globalThis.__supabaseClient = client;
       globalThis.__supabaseClientInitialized = true;
 
-      console.log('✅ Supabase client initialized for project:', projectId);
-
     } catch (error) {
-      console.error('❌ Failed to initialize Supabase client:', error);
       throw error;
     }
   }
@@ -65,6 +62,9 @@ const getSupabaseClient = () => {
 };
 
 const supabase = getSupabaseClient();
+
+// Export the singleton supabase client for use in other modules
+export { supabase };
 
 // ============================================
 // Helper Functions
@@ -152,20 +152,16 @@ export const authApi = {
 
       if (checkError) {
         // RLS may block anonymous role queries — silently skip, use bypass login
-        console.warn('⚠️ Admin check skipped (RLS/permissions):', checkError.message);
         return { message: 'Use bypass login' };
       }
 
       if (existingAdmin) {
-        console.log('✅ Admin already exists');
         return { message: 'Admin already exists' };
       }
 
-      console.log('⚠️ Admin creation skipped - use bypass login');
       return { message: 'Use bypass login' };
-    } catch (error: any) {
+    } catch {
       // Silently handle any error — bypass login works without this
-      console.warn('Admin initialization skipped:', error?.message || error);
       return { message: 'Use bypass login' };
     }
   },
@@ -177,30 +173,16 @@ export const authApi = {
 
   // Admin signin (Secure Bypass First → fallback to Supabase Auth)
   adminSignin: async (email: string, password: string) => {
-    console.log('🔐 ===== ADMIN LOGIN =====');
-    console.log('Email:', email);
-
     // ── Hardcoded admin credentials (bypass when Supabase Auth unavailable) ──
     const ADMIN_EMAIL    = 'm78787531@gmail.com';
     const ADMIN_PASSWORD = '9886510858@TcbToponeAdmin';
 
     // ── Check Bypass First (Fast Path - Works Even Offline) ──
-    const emailMatch = email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
+    const emailMatch    = email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
     const passwordMatch = password.trim() === ADMIN_PASSWORD.trim();
-    
-    console.log('🔍 Debug credentials:');
-    console.log('   Entered email:', `"${email}"`);
-    console.log('   Expected email:', `"${ADMIN_EMAIL}"`);
-    console.log('   Email trimmed:', `"${email.toLowerCase().trim()}"`);
-    console.log('   Email match:', emailMatch);
-    console.log('   Password length:', password.length);
-    console.log('   Expected password length:', ADMIN_PASSWORD.length);
-    console.log('   Password match:', passwordMatch);
 
     // If credentials match admin, use bypass immediately (don't wait for Supabase)
     if (emailMatch && passwordMatch) {
-      console.log('✅ Admin credentials verified - using secure bypass');
-
       const bypassUser = {
         id: 'admin-bypass-local',
         email: ADMIN_EMAIL,
@@ -217,20 +199,14 @@ export const authApi = {
       localStorage.setItem('toodies_user', JSON.stringify(bypassUser));
       localStorage.setItem('admin_bypass_active', 'true');
 
-      console.log('✅ Admin bypass session stored');
-      console.log('💡 Bypass mode active - app works perfectly without Supabase!');
-      console.log('===== END LOGIN =====');
       return { access_token: bypassToken, user: bypassUser };
     }
 
     // If credentials don't match bypass, try Supabase Auth (for other admin accounts)
     try {
-      console.log('🔑 Credentials don\'t match bypass - trying Supabase Auth...');
       const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() });
 
       if (!error && data.user) {
-        console.log('✅ Supabase Auth OK - User ID:', data.user.id);
-
         // Try to fetch profile from public.users
         const { data: userProfile, error: profileError } = await supabase
           .from('users')
@@ -247,31 +223,17 @@ export const authApi = {
           const mappedUser = mapUserFields(userProfile, data.user);
           localStorage.setItem('toodies_access_token', data.session?.access_token || '');
           localStorage.setItem('toodies_user', JSON.stringify(mappedUser));
-          console.log('✅ Admin login via Supabase Auth successful');
           return { access_token: data.session?.access_token || '', user: mappedUser };
         }
       }
-      
-      // Supabase auth failed
-      if (error) {
-        console.warn('⚠️ Supabase Auth error:', error.message);
-      }
     } catch (supabaseErr: any) {
-      console.warn('⚠️ Supabase Auth unavailable:', supabaseErr.message);
+      // Re-throw explicit access denied errors; swallow network/auth errors
+      if (supabaseErr.message?.includes('Access denied')) {
+        throw supabaseErr;
+      }
     }
 
     // Wrong credentials entirely
-    console.error('❌ All login methods failed for:', email);
-    console.error('');
-    console.error('📋 Troubleshooting:');
-    console.error('   ✓ Expected email:', ADMIN_EMAIL);
-    console.error('   ✓ Your email:', email);
-    console.error('   ✓ Password is case-sensitive: 9886510858@TcbToponeAdmin');
-    console.error('   ✓ Check for extra spaces');
-    console.error('');
-    console.error('💡 Quick fix: Copy/paste these exact credentials:');
-    console.error('   Email: m78787531@gmail.com');
-    console.error('   Password: 9886510858@TcbToponeAdmin');
     throw new Error('Invalid credentials. Please check your email and password.');
   },
 

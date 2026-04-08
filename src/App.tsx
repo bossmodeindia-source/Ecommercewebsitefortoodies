@@ -86,17 +86,14 @@ export default function App() {
     // Initialize admin account on first load
     const initializeApp = async () => {
       try {
-        console.log('🔧 Initializing admin account...');
-        const result = await authApi.initializeAdmin();
-        console.log('✅ Admin initialization result:', result);
-      } catch (error) {
+        await authApi.initializeAdmin();
+      } catch {
         // Don't crash the app if initialization fails
-        console.warn('Admin initialization skipped:', error);
       }
     };
 
     // Run initialization but don't block rendering
-    initializeApp().catch((err) => console.warn('Init failed:', err));
+    initializeApp().catch(() => {});
 
     // Check for admin access via URL param
     const urlParams = new URLSearchParams(window.location.search);
@@ -128,7 +125,7 @@ export default function App() {
     try {
       const products = await productsApi.getAll();
       if (products.length === 0) {
-        console.log('No products found, but skipping initialization (requires admin login)');
+        // No products yet - admin can add via the dashboard
       }
     } catch (error) {
       // Silently skip - products will be available after admin setup

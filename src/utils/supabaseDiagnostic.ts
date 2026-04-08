@@ -3,7 +3,7 @@
  * Run this to identify exactly why Supabase is failing
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './supabaseApi';
 import { projectId, publicAnonKey } from './supabase/info';
 
 export interface DiagnosticResult {
@@ -13,6 +13,10 @@ export interface DiagnosticResult {
   details?: any;
   fix?: string;
 }
+
+// Any of these statuses means the Supabase server IS reachable.
+// 401 = project is up, just needs auth at root level.
+const REACHABLE_STATUSES = new Set([200, 201, 204, 400, 401, 403, 404]);
 
 export async function runSupabaseDiagnostic(): Promise<DiagnosticResult[]> {
   const results: DiagnosticResult[] = [];
@@ -72,8 +76,8 @@ export async function runSupabaseDiagnostic(): Promise<DiagnosticResult[]> {
     
     clearTimeout(timeoutId);
     
-    if (response.ok || response.status === 404) {
-      // 404 is OK - means project is reachable
+    if (response.ok || REACHABLE_STATUSES.has(response.status)) {
+      // 401/403/404 all mean the server responded — project is reachable
       results.push({
         step: '2. Network',
         status: 'success',
@@ -131,33 +135,26 @@ export async function runSupabaseDiagnostic(): Promise<DiagnosticResult[]> {
   }
 
   // ========================================
-  // Step 3: Initialize Supabase Client
+  // Step 3: Use Singleton Supabase Client
   // ========================================
-  console.log('Step 3: Initializing Supabase client...');
+  console.log('Step 3: Using singleton Supabase client...');
   
-  let supabase;
   try {
-    supabase = createClient(
-      `https://${projectId}.supabase.co`,
-      publicAnonKey,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false
-        }
-      }
-    );
+    // Use the singleton client from supabaseApi.ts
+    if (!supabase) {
+      throw new Error('Supabase client not initialized');
+    }
     results.push({
       step: '3. Client Init',
       status: 'success',
-      message: 'Supabase client created',
+      message: 'Supabase singleton client available',
     });
     console.log('✅ Client initialized\n');
   } catch (error: any) {
     results.push({
       step: '3. Client Init',
       status: 'failed',
-      message: 'Failed to create client',
+      message: 'Failed to access singleton client',
       details: { error: error.message },
       fix: 'Check credentials in /utils/supabase/info.tsx'
     });

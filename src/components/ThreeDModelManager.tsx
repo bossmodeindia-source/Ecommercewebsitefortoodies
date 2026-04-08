@@ -70,16 +70,12 @@ export function ThreeDModelManager() {
   };
 
   const loadPrintingMethods = () => {
-    console.log('=== LOADING PRINTING METHODS ===');
     const stored = localStorage.getItem('printingMethods');
-    console.log('Raw stored data:', stored);
     
     if (stored) {
       try {
         const methods = JSON.parse(stored) as PrintingMethod[];
-        console.log('All printing methods:', methods);
         const activeMethods = methods.filter(m => m.isActive);
-        console.log('Active printing methods:', activeMethods);
         setAvailablePrintingMethods(activeMethods);
         
         if (activeMethods.length > 0) {
@@ -90,11 +86,9 @@ export function ThreeDModelManager() {
           });
         }
       } catch (error) {
-        console.error('Error parsing printing methods:', error);
         toast.error('Failed to load printing methods');
       }
     } else {
-      console.log('No printing methods found in localStorage');
       toast('No printing methods configured', {
         description: 'Please add printing methods in the admin panel first.'
       });
@@ -102,18 +96,7 @@ export function ThreeDModelManager() {
   };
 
   const handleSaveModel = () => {
-    console.log('=== SAVE BUTTON CLICKED ===');
-    
-    // Debug logging
-    console.log('Form Data:', formData);
-    console.log('Product ID:', formData.productId);
-    console.log('Model URL:', formData.modelUrl);
-    console.log('Colors:', formData.availableColors);
-    console.log('Sizes:', formData.availableSizes);
-    console.log('Printing Methods:', formData.printingMethods);
-
     if (!formData.productId) {
-      console.error('Validation failed: No Product ID');
       toast.error('Please select a Product from the dropdown', {
         description: 'You must select a product before saving the 2D design configuration'
       });
@@ -121,65 +104,47 @@ export function ThreeDModelManager() {
     }
 
     if (!formData.modelUrl) {
-      console.error('Validation failed: No Model URL');
       toast.error('Please upload a 2D mockup image', {
         description: 'A mockup image is required for the design configuration'
       });
       return;
     }
 
-    // Colors are optional - just show a warning
     if (formData.availableColors.length === 0) {
-      console.warn('Warning: No colors added, using default colors');
       toast('No colors added - using default colors', {
         description: 'Add colors later by editing the model'
       });
-      // Add default colors
       formData.availableColors = ['#000000', '#FFFFFF', '#FF0000'];
     }
 
-    // Sizes are optional - just show a warning
     if (formData.availableSizes.length === 0) {
       toast('No sizes added - using default sizes', {
         description: 'Add sizes later by editing the model'
       });
-      // Add default sizes
       formData.availableSizes = ['S', 'M', 'L', 'XL'];
-    }
-
-    // Printing methods are optional - no warning needed
-    if (formData.printingMethods.length === 0) {
-      console.log('Info: No printing methods selected (optional)');
     }
 
     const newModel: ThreeDModelConfig = {
       id: editingModel?.id || Date.now().toString(),
       ...formData,
-      modelUrl: formData.modelUrl || '', // Ensure it's a string
+      modelUrl: formData.modelUrl || '',
       createdAt: editingModel?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    console.log('Model to save:', newModel);
-
     try {
       if (editingModel) {
-        console.log('Updating existing model...');
         storageUtils.update3DModelConfig(newModel);
         toast.success('3D model updated successfully!');
       } else {
-        console.log('Adding new model...');
         storageUtils.add3DModelConfig(newModel);
         toast.success('3D model added successfully!');
       }
 
-      console.log('Save successful, reloading configs...');
       loadModelConfigs();
       resetForm();
-      console.log('Form reset complete');
     } catch (error) {
-      console.error('Error saving model:', error);
-      toast.error('Failed to save 3D model. Check console for details.');
+      toast.error('Failed to save 3D model configuration.');
     }
   };
 
@@ -308,7 +273,6 @@ export function ThreeDModelManager() {
         loadModelConfigs();
         toast.success('All 3D model data cleared successfully!');
       } catch (error) {
-        console.error('Error clearing data:', error);
         toast.error('Failed to clear data');
       }
     }
@@ -328,19 +292,12 @@ export function ThreeDModelManager() {
           {modelConfigs.length > 0 && (
             <>
               <Button
-                onClick={() => {
-                  console.log('=== CURRENT 2D MODEL CONFIGURATIONS ===');
-                  console.log('Total configs:', modelConfigs.length);
-                  console.log('Configs:', modelConfigs);
-                  const stored = localStorage.getItem('toodies_3d_model_configs');
-                  console.log('Raw localStorage:', stored);
-                  toast.success(`${modelConfigs.length} configurations found. Check console for details.`);
-                }}
+                onClick={() => toast.success(`${modelConfigs.length} configurations found`)}
                 variant="outline"
                 className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
               >
                 <Package className="w-4 h-4 mr-2" />
-                Test Configs ({modelConfigs.length})
+                Configs ({modelConfigs.length})
               </Button>
               <Button
                 onClick={clearAllData}

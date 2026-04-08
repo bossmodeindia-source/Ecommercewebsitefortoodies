@@ -1,20 +1,6 @@
 // Supabase Storage Helper Functions
 // Handles all file uploads/downloads to Supabase Storage buckets
-import { createClient } from '@supabase/supabase-js';
-import { projectId, publicAnonKey } from './supabase/info';
-
-// Initialize Supabase client for storage operations
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      storageKey: 'toodies-auth',
-    }
-  }
-);
+import { supabase } from './supabaseApi';
 
 // ============================================
 // Helper Functions
@@ -481,8 +467,5 @@ export const storageHelpers = {
     return stats;
   },
 };
-
-// Export supabase client for direct usage if needed
-export { supabase };
 
 export default storageHelpers;

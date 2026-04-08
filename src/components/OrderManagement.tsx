@@ -90,8 +90,7 @@ export function OrderManagement() {
       
       setOrders(mappedOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     } catch (error) {
-      console.error('Failed to load orders from Supabase:', error);
-      // Silently fall back to empty orders - don't show error toast
+      // Silently fall back to empty orders
       setOrders([]);
     } finally {
       setLoading(false);
@@ -128,7 +127,7 @@ export function OrderManagement() {
       setSelectedOrder(null);
       await loadOrders();
     } catch (error) {
-      console.error('Failed to update tracking:', error);
+
       toast.error('Failed to update tracking information');
     }
   };
@@ -140,7 +139,7 @@ export function OrderManagement() {
       toast.success(`Order status updated to ${status}`);
       await loadOrders();
     } catch (error) {
-      console.error('Failed to update status:', error);
+
       toast.error('Failed to update order status');
     }
   };
@@ -216,7 +215,7 @@ export function OrderManagement() {
       toast.success('Invoice saved to database successfully!');
       await loadOrders(); // Reload orders to reflect new invoice
     } catch (error) {
-      console.error('Failed to save invoice:', error);
+
       toast.error('Failed to save invoice to database');
     }
     
@@ -263,7 +262,7 @@ export function OrderManagement() {
       setPrepaidReference('');
       setPrepaidNotes('');
     } catch (error) {
-      console.error('Failed to record prepaid payment:', error);
+
       toast.error('Failed to record prepaid payment');
     }
   };

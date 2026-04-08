@@ -63,16 +63,8 @@ export function PaymentDialog({ isOpen, onClose, onPaymentSuccess, total }: Paym
     }
 
     if (paymentMethod === 'upi') {
-      // Mock UPI payment
-      console.log('💳 UPI Payment Initiated');
-      console.log(`Amount: ₹${total}`);
-      console.log('UPI ID: Mock UPI payment (In production, integrate with your UPI gateway)');
-      
       setTimeout(() => {
-        const mockPaymentData = {
-          paymentId: `upi_${Date.now()}`,
-          status: 'completed'
-        };
+        const mockPaymentData = { paymentId: `upi_${Date.now()}`, status: 'completed' };
         toast.success('UPI Payment successful!');
         onPaymentSuccess('upi', mockPaymentData);
         setIsProcessing(false);
@@ -82,16 +74,8 @@ export function PaymentDialog({ isOpen, onClose, onPaymentSuccess, total }: Paym
     }
 
     if (paymentMethod === 'netbanking') {
-      // Mock Netbanking payment
-      console.log('🏦 Netbanking Payment Initiated');
-      console.log(`Amount: ₹${total}`);
-      console.log('In production, integrate with your payment gateway for netbanking');
-      
       setTimeout(() => {
-        const mockPaymentData = {
-          paymentId: `nb_${Date.now()}`,
-          status: 'completed'
-        };
+        const mockPaymentData = { paymentId: `nb_${Date.now()}`, status: 'completed' };
         toast.success('Netbanking Payment successful!');
         onPaymentSuccess('netbanking', mockPaymentData);
         setIsProcessing(false);
@@ -101,16 +85,8 @@ export function PaymentDialog({ isOpen, onClose, onPaymentSuccess, total }: Paym
     }
 
     if (paymentMethod === 'wallet') {
-      // Mock Wallet payment
-      console.log('👛 Wallet Payment Initiated');
-      console.log(`Amount: ₹${total}`);
-      console.log('Wallets: Paytm, Amazon Pay, Mobikwik, Freecharge');
-      
       setTimeout(() => {
-        const mockPaymentData = {
-          paymentId: `wallet_${Date.now()}`,
-          status: 'completed'
-        };
+        const mockPaymentData = { paymentId: `wallet_${Date.now()}`, status: 'completed' };
         toast.success('Wallet Payment successful!');
         onPaymentSuccess('wallet', mockPaymentData);
         setIsProcessing(false);
@@ -120,16 +96,8 @@ export function PaymentDialog({ isOpen, onClose, onPaymentSuccess, total }: Paym
     }
 
     if (paymentMethod === 'emi') {
-      // Mock EMI payment
-      console.log('💳 EMI Payment Initiated');
-      console.log(`Amount: ₹${total}`);
-      console.log('EMI Options: 3/6/9/12 months available');
-      
       setTimeout(() => {
-        const mockPaymentData = {
-          paymentId: `emi_${Date.now()}`,
-          status: 'completed'
-        };
+        const mockPaymentData = { paymentId: `emi_${Date.now()}`, status: 'completed' };
         toast.success('EMI Payment successful!');
         onPaymentSuccess('emi', mockPaymentData);
         setIsProcessing(false);
@@ -139,34 +107,14 @@ export function PaymentDialog({ isOpen, onClose, onPaymentSuccess, total }: Paym
     }
 
     if (paymentMethod === 'razorpay') {
-      // Razorpay Integration (Mock Implementation)
-      console.log('💰 Razorpay Payment Gateway');
-      console.log('=====================================');
-      console.log('To integrate Razorpay in production:');
-      console.log('1. Add Razorpay script to your HTML: <script src="https://checkout.razorpay.com/v1/checkout.js"></script>');
-      console.log('2. Get API keys from: https://dashboard.razorpay.com/');
-      console.log('3. Create order from backend');
-      console.log('4. Initialize Razorpay checkout');
-      console.log('');
-      console.log('Mock Razorpay Details:');
-      console.log(`Order Amount: ₹${total}`);
-      console.log(`Order ID: rzp_order_${Date.now()}`);
-      console.log('');
-      
-      // Mock Razorpay checkout
       const options = {
-        key: 'rzp_test_XXXXXXXXXXXXXXXX', // Replace with your Razorpay Key ID
-        amount: total * 100, // Razorpay accepts amount in paise
+        key: 'rzp_test_XXXXXXXXXXXXXXXX',
+        amount: total * 100,
         currency: 'INR',
         name: 'Toodies',
         description: 'Custom Apparel Purchase',
-        order_id: `rzp_order_${Date.now()}`, // Replace with actual order ID from backend
+        order_id: `rzp_order_${Date.now()}`,
         handler: function (response: any) {
-          console.log('✅ Payment Successful!');
-          console.log('Payment ID:', response.razorpay_payment_id);
-          console.log('Order ID:', response.razorpay_order_id);
-          console.log('Signature:', response.razorpay_signature);
-          
           const paymentData = {
             razorpayOrderId: response.razorpay_order_id,
             razorpayPaymentId: response.razorpay_payment_id,
@@ -174,35 +122,20 @@ export function PaymentDialog({ isOpen, onClose, onPaymentSuccess, total }: Paym
             paymentId: response.razorpay_payment_id,
             status: 'completed'
           };
-          
           toast.success('Payment successful!');
           onPaymentSuccess('razorpay', paymentData);
           setIsProcessing(false);
           onClose();
         },
-        prefill: {
-          name: 'Customer Name',
-          email: 'customer@example.com',
-          contact: '9999999999'
-        },
-        theme: {
-          color: '#06b6d4' // Cyan color matching our theme
-        },
-        modal: {
-          ondismiss: function() {
-            setIsProcessing(false);
-            toast.error('Payment cancelled');
-          }
-        }
+        prefill: { name: 'Customer Name', email: 'customer@example.com', contact: '9999999999' },
+        theme: { color: '#06b6d4' },
+        modal: { ondismiss: function() { setIsProcessing(false); toast.error('Payment cancelled'); } }
       };
 
-      // Check if Razorpay is loaded
       if (typeof window.Razorpay !== 'undefined') {
         const rzp = new window.Razorpay(options);
         rzp.open();
       } else {
-        // Mock payment for development
-        console.log('💡 Razorpay SDK not loaded. Simulating payment...');
         setTimeout(() => {
           const mockPaymentData = {
             razorpayOrderId: `rzp_order_${Date.now()}`,
@@ -211,10 +144,6 @@ export function PaymentDialog({ isOpen, onClose, onPaymentSuccess, total }: Paym
             paymentId: `pay_${Date.now()}`,
             status: 'completed'
           };
-          
-          console.log('✅ Mock Payment Completed!');
-          console.log('Payment Data:', mockPaymentData);
-          
           toast.success('Payment successful! (Mock Mode)');
           onPaymentSuccess('razorpay', mockPaymentData);
           setIsProcessing(false);

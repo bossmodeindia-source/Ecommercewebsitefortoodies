@@ -16,36 +16,25 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Version check
-  console.log('🔧 AdminLogin Component v2.0.0 - Supabase Auth (Secure)');
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      console.log('🔑 Attempting admin login via Supabase...');
-      
-      // Use Supabase API for authentication
       const result = await authApi.adminSignin(email, password);
-      
-      console.log('📋 Login result received');
-      
+
       if (result && result.user) {
-        console.log('✅ Admin login successful - User:', result.user);
         setTimeout(() => {
           setLoading(false);
           onLogin();
         }, 500);
         return;
       } else {
-        console.error('❌ Login failed - No user in result');
-        setError('Login failed - Please try again');
+        setError('Login failed. Please check your credentials and try again.');
         setLoading(false);
       }
     } catch (err: any) {
-      console.error('❌ Login error:', err);
       setError(err.message || 'Invalid credentials. Please check your email and password.');
       setLoading(false);
     }
@@ -70,7 +59,7 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
               <Shield className="w-10 h-10 text-[#d4af37]" />
             </div>
             <h1 className="text-3xl font-black text-white mb-2 uppercase tracking-[2px] glow-text">Admin Access</h1>
-            <p className="text-slate-500 text-sm font-light">Enter Master Password</p>
+            <p className="text-slate-500 text-sm font-light">Authorized Personnel Only</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6" id="admin-login-form">
@@ -83,10 +72,11 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter email"
+                  placeholder="Enter admin email"
                   className="pl-14 bg-white/5 border-white/10 text-white h-16 rounded-2xl focus:border-[#d4af37]/50 focus:ring-0 transition-all"
                   required
                   autoFocus
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -103,51 +93,28 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
                   placeholder="Enter master password"
                   className="pl-14 bg-white/5 border-white/10 text-white h-16 rounded-2xl focus:border-[#d4af37]/50 focus:ring-0 transition-all"
                   required
+                  autoComplete="current-password"
                 />
               </div>
             </div>
 
             {error && (
-              <div className="space-y-2">
-                <p className="text-red-400 text-xs ml-1">{error}</p>
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 text-xs text-yellow-400">
-                  <p className="font-bold mb-1">💡 Quick Fix - Copy These Exact Credentials:</p>
-                  <div className="bg-black/30 rounded-lg p-2 mb-2 font-mono text-[10px]">
-                    <p className="text-white">Email: <span className="text-[#d4af37] select-all">m78787531@gmail.com</span></p>
-                    <p className="text-white">Password: <span className="text-[#d4af37] select-all">9886510858@TcbToponeAdmin</span></p>
-                  </div>
-                  <p className="font-bold mb-1 text-[10px]">⚠️ Common Issues:</p>
-                  <ul className="list-disc list-inside space-y-1 text-[10px]">
-                    <li>Password is <span className="font-bold">case-sensitive</span>: Capital T, C, T, A</li>
-                    <li>No spaces before or after email/password</li>
-                    <li>Clear browser cache if still failing</li>
-                  </ul>
-                  <div className="mt-2 pt-2 border-t border-yellow-500/20">
-                    <p className="text-[10px] mb-1">📋 Press F12 to see detailed debug logs</p>
-                    <a 
-                      href="https://github.com/yourusername/toodies/blob/main/ADMIN_LOGIN_QUICK_FIX.md" 
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block text-[#d4af37] hover:underline font-bold text-[10px]"
-                    >
-                      → Complete Troubleshooting Guide
-                    </a>
-                  </div>
-                </div>
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                <p className="text-red-400 text-xs text-center">{error}</p>
               </div>
             )}
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={loading}
               className="glow-button w-full h-16 rounded-2xl font-black text-lg shadow-lg border-0 disabled:opacity-50"
             >
               {loading ? 'Verifying...' : 'Access Dashboard'}
             </Button>
           </form>
-          
+
           <div className="mt-10 text-center">
-            <button 
+            <button
               onClick={() => window.location.href = '/'}
               className="text-[10px] text-slate-500 hover:text-[#d4af37] transition-colors uppercase tracking-[4px] font-bold"
             >

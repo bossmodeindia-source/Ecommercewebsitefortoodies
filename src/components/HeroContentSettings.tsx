@@ -5,9 +5,10 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Upload, Video, Image as ImageIcon, X, Save, Layers, Info, CheckCircle2 } from 'lucide-react';
+import { Upload, Video, Image as ImageIcon, X, Save, Layers, Info, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { settingsApi } from '../utils/supabaseApi';
+import storageHelpers from '../utils/supabaseStorageHelpers';
 
 interface HeroContent {
   type: 'video' | 'image';
@@ -91,6 +92,9 @@ export function HeroContentSettings() {
   const [isSavingHero, setIsSavingHero] = useState(false);
   const [isSavingCollection, setIsSavingCollection] = useState(false);
   const [loadedSlot, setLoadedSlot] = useState<number | null>(null);
+  // Track per-slot upload progress
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
+  const [isUploadingHero, setIsUploadingHero] = useState(false);
 
   useEffect(() => {
     loadFromSupabase();
@@ -156,7 +160,27 @@ export function HeroContentSettings() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /**
+   * Upload a file to Supabase Storage and return the public URL.
+   * Falls back to base64 DataURL if Storage upload fails (e.g. bucket not created yet).
+   */
+  const uploadToStorage = async (file: File, folder: string): Promise<string> => {
+    try {
+      const url = await storageHelpers.uploadAdminAsset(folder, file);
+      return url;
+    } catch (err: any) {
+      // Storage bucket may not exist yet — fall back to base64 for local preview
+      console.warn(`Storage upload failed (${folder}), falling back to base64:`, err?.message);
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const isVideo = file.type.startsWith('video/');
@@ -169,16 +193,23 @@ export function HeroContentSettings() {
       toast.error('File size must be less than 50MB');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
+
+    setIsUploadingHero(true);
+    try {
+      const url = await uploadToStorage(file, 'hero');
       setHeroContent(prev => ({
         ...prev,
         type: isVideo ? 'video' : 'image',
-        url: event.target?.result as string,
+        url,
       }));
       toast.success(`${isVideo ? 'Video' : 'Image'} uploaded — click Save to apply`);
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      toast.error('Upload failed: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setIsUploadingHero(false);
+      // Reset input so same file can be re-selected
+      e.target.value = '';
+    }
   };
 
   const handleUrlInput = (url: string) => {
@@ -187,7 +218,7 @@ export function HeroContentSettings() {
     setHeroContent(prev => ({ ...prev, type: isVideo ? 'video' : 'image', url }));
   };
 
-  const handleCollectionImageUpload = (slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCollectionImageUpload = async (slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -198,15 +229,21 @@ export function HeroContentSettings() {
       toast.error('Image must be less than 20MB');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
+
+    setUploadingSlot(slotIndex);
+    try {
+      const url = await uploadToStorage(file, 'collection');
       const updated = [...collectionImages];
-      updated[slotIndex] = event.target?.result as string;
+      updated[slotIndex] = url;
       setCollectionImages(updated);
       setLoadedSlot(slotIndex);
-      toast.success(`Slot ${slotIndex + 1} image loaded — click "Save Collection Images" to apply`);
-    };
-    reader.readAsDataURL(file);
+      toast.success(`Slot ${slotIndex + 1} image uploaded — click "Save Collection Images" to apply`);
+    } catch (err: any) {
+      toast.error('Upload failed: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setUploadingSlot(null);
+      e.target.value = '';
+    }
   };
 
   const handleCollectionUrlChange = (slotIndex: number, url: string) => {
@@ -243,9 +280,13 @@ export function HeroContentSettings() {
                 variant="outline"
                 className="w-full border-[#c9a961]/30 hover:bg-[#c9a961]/10 text-[#f8f6f0]"
                 onClick={() => document.getElementById('hero-file-upload')?.click()}
+                disabled={isUploadingHero}
               >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload File
+                {isUploadingHero ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading…</>
+                ) : (
+                  <><Upload className="w-4 h-4 mr-2" /> Upload File</>
+                )}
               </Button>
               <input
                 id="hero-file-upload"
@@ -377,6 +418,7 @@ export function HeroContentSettings() {
           {/* Ratio legend */}
           <div className="mt-4 p-3 rounded-xl border border-[#c9a961]/15 bg-[#c9a961]/5 flex flex-wrap gap-4 text-xs text-slate-300">
             <div className="flex items-center gap-1.5"><Info className="w-3.5 h-3.5 text-[#c9a961]" /> <span>All images use <strong className="text-[#c9a961]">object-cover</strong> — the image fills its tile, cropping from the edges. Keep the main subject centred.</span></div>
+            <div className="flex items-center gap-1.5"><Info className="w-3.5 h-3.5 text-[#c9a961]" /> <span>Images are uploaded to <strong className="text-white">Supabase Storage</strong> — only the URL is stored, not the raw file data.</span></div>
             <div className="flex items-center gap-1.5"><Info className="w-3.5 h-3.5 text-[#c9a961]" /> <span>Max file size per slot: <strong className="text-white">20 MB</strong></span></div>
           </div>
         </CardHeader>
@@ -412,7 +454,12 @@ export function HeroContentSettings() {
                   >
                     {slot.recommended}
                   </Badge>
-                  {loadedSlot === slot.index && (
+                  {uploadingSlot === slot.index && (
+                    <Badge className="bg-blue-700/20 text-blue-400 border-blue-500/30 text-xs">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" /> Uploading…
+                    </Badge>
+                  )}
+                  {loadedSlot === slot.index && uploadingSlot !== slot.index && (
                     <Badge className="bg-emerald-700/20 text-emerald-400 border-emerald-500/30 text-xs">
                       <CheckCircle2 className="w-3 h-3 mr-1" /> Loaded
                     </Badge>
@@ -443,9 +490,13 @@ export function HeroContentSettings() {
                       size="sm"
                       className="w-full border-[#c9a961]/30 hover:bg-[#c9a961]/10 text-[#f8f6f0]"
                       onClick={() => document.getElementById(`collection-upload-${slot.index}`)?.click()}
+                      disabled={uploadingSlot === slot.index}
                     >
-                      <Upload className="w-3.5 h-3.5 mr-2" />
-                      Choose Image
+                      {uploadingSlot === slot.index ? (
+                        <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> Uploading…</>
+                      ) : (
+                        <><Upload className="w-3.5 h-3.5 mr-2" /> Choose Image</>
+                      )}
                     </Button>
                     <input
                       id={`collection-upload-${slot.index}`}
@@ -494,7 +545,12 @@ export function HeroContentSettings() {
                       maxHeight: '240px',
                     }}
                   >
-                    {collectionImages[slot.index] ? (
+                    {uploadingSlot === slot.index ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-[#c9a961] gap-2">
+                        <Loader2 className="w-8 h-8 animate-spin" />
+                        <span className="text-xs">Uploading to Storage…</span>
+                      </div>
+                    ) : collectionImages[slot.index] ? (
                       <img
                         src={collectionImages[slot.index]}
                         alt={`Preview ${slot.label}`}
@@ -548,7 +604,7 @@ export function HeroContentSettings() {
             </p>
             <Button
               onClick={handleSaveCollection}
-              disabled={isSavingCollection}
+              disabled={isSavingCollection || uploadingSlot !== null}
               className="bg-[#c9a961] hover:bg-[#b8926a] text-[#0a0a0a] elegant-button"
             >
               <Save className="w-4 h-4 mr-2" />
@@ -605,6 +661,10 @@ export function HeroContentSettings() {
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#c9a961] mt-1.5 shrink-0" />
                   <span>Export as <strong className="text-white">WEBP</strong> for best quality-to-size ratio; JPEG at 85% quality also works</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#c9a961] mt-1.5 shrink-0" />
+                  <span>Files are uploaded to <strong className="text-white">Supabase Storage</strong> — only URLs are saved in the database (no base64 bloat)</span>
                 </li>
               </ul>
             </div>

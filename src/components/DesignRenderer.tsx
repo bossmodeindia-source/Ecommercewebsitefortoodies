@@ -123,7 +123,6 @@ export async function exportDesignFromCoordinates(
           };
 
           layerImg.onerror = () => {
-            console.warn('Failed to load layer image:', layer.imageUrl);
             loadedLayers++;
             if (loadedLayers === totalLayers) {
               resolve(canvas.toDataURL('image/png', 1.0));
@@ -150,16 +149,6 @@ export const DesignRenderer = memo(function DesignRenderer({
 }: DesignRendererProps) {
   // Scale factor to render at different sizes (e.g., 48px for thumbnails)
   const scale = canvasSize / 600;
-
-  // Debug logging for coordinate verification
-  if (canvasSize >= 300) {
-    console.log('🎨 DesignRenderer - Rendering with absolute XY coordinates');
-    console.log(`   Canvas size: ${canvasSize}x${canvasSize}px (scale: ${scale})`);
-    console.log(`   Layers count: ${layers.length}`);
-    layers.forEach((layer, i) => {
-      console.log(`   Layer ${i + 1}: X=${layer.x}px, Y=${layer.y}px, W=${layer.width}px, H=${layer.height}px, Rot=${layer.rotation}°`);
-    });
-  }
 
   return (
     <div 

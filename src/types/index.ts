@@ -156,10 +156,10 @@ export interface Coupon {
 export interface MessageTemplate {
   id: string;
   name: string;
-  type: 'order_confirmation' | 'shipping_update' | 'delivery_confirmation' | 'custom';
+  type: 'order_confirmation' | 'shipping_update' | 'delivery_confirmation' | 'custom' | 'whatsapp' | 'email' | 'tracking_update';
   subject?: string;
   content: string;
-  variables: string[];
+  variables?: string[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -170,11 +170,19 @@ export interface PopupMessage {
   id: string;
   title: string;
   message: string;
-  type: 'info' | 'warning' | 'success' | 'promo';
+  type: 'info' | 'warning' | 'success' | 'promo' | 'verification' | string;
+  // legacy button fields
   buttonText?: string;
   buttonLink?: string;
-  showOnPages: ('home' | 'products' | 'cart' | 'all')[];
-  displayFrequency: 'once' | 'daily' | 'always';
+  // extended fields used in PopupManagement & PopupDisplay
+  link?: string;
+  linkText?: string;
+  couponCode?: string;
+  targetAudience?: 'all' | 'verified' | 'unverified' | 'new' | 'existing' | string;
+  priority?: number;
+  expiryDate?: string;
+  showOnPages?: ('home' | 'products' | 'cart' | 'all')[];
+  displayFrequency: 'once' | 'daily' | 'always' | 'session' | string;
   isActive: boolean;
   validFrom?: string;
   validUntil?: string;
@@ -185,38 +193,58 @@ export interface PopupMessage {
 export interface ChatMessage {
   id: string;
   conversationId: string;
-  senderId: string;
-  senderName: string;
-  senderRole: 'admin' | 'customer';
+  // new field names used throughout components
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  sender?: 'user' | 'admin' | 'ai' | string;
+  // legacy field names kept for backwards compatibility
+  senderId?: string;
+  senderName?: string;
+  senderRole?: 'admin' | 'customer' | string;
   message: string;
   timestamp: string;
-  isRead: boolean;
+  // new field name
+  read?: boolean;
+  // legacy field name
+  isRead?: boolean;
 }
 
 export interface ChatConversation {
   id: string;
-  customerId: string;
-  customerName: string;
-  customerEmail: string;
+  // new field names used throughout components
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  messages?: ChatMessage[];
+  lastMessageAt?: string;
+  // legacy field names kept for backwards compatibility
+  customerId?: string;
+  customerName?: string;
+  customerEmail?: string;
   status: 'open' | 'closed';
   lastMessage?: string;
   lastMessageTime?: string;
   unreadCount: number;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 // AI Configuration Types
 export interface AIConfig {
-  enabled: boolean;
-  provider: 'openai' | 'custom';
+  // new field name used throughout components
+  isEnabled?: boolean;
+  // legacy field name
+  enabled?: boolean;
+  provider?: 'openai' | 'custom' | string;
   apiKey?: string;
   model?: string;
   temperature?: number;
   systemPrompt?: string;
-  autoReply: boolean;
+  greetingMessage?: string;
+  autoReply?: boolean;
   autoReplyDelay?: number;
-  fallbackToHuman: boolean;
+  fallbackToHuman?: boolean;
   confidenceThreshold?: number;
 }
 

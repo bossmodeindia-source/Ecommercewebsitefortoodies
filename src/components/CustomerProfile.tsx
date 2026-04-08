@@ -58,14 +58,8 @@ export function CustomerProfile({ user, onUpdate }: CustomerProfileProps) {
     setOtp('');
     setShowOtpDialog(true);
     
-    // Mock email sending - log to console
-    console.log('📧 Email OTP Verification');
-    console.log(`To: ${user.email}`);
-    console.log(`Subject: Verify Your Email - Toodies`);
-    console.log(`Message: Your OTP is: ${otp}`);
-    console.log(`This OTP will expire in 10 minutes.`);
-    
-    toast.info(`OTP sent to ${user.email} (Check console for mock OTP)`);
+    // OTP generated in-memory for mock verification flow
+    toast.info(`Verification code sent to ${user.email}`);
   };
 
   const handleVerifyMobile = () => {
@@ -74,12 +68,7 @@ export function CustomerProfile({ user, onUpdate }: CustomerProfileProps) {
     setOtp('');
     setShowOtpDialog(true);
     
-    // Mock SMS sending - log to console
-    console.log('📱 SMS OTP Verification');
-    console.log(`To: ${user.mobile}`);
-    console.log(`Message: Your Toodies verification OTP is: ${otp}. Valid for 10 minutes.`);
-    
-    toast.info(`OTP sent to ${user.mobile} (Check console for mock OTP)`);
+    toast.info(`Verification code sent to ${user.mobile}`);
   };
 
   const handleSubmitOtp = () => {
@@ -388,7 +377,6 @@ export function CustomerProfile({ user, onUpdate }: CustomerProfileProps) {
               onClick={() => {
                 const newOtp = generateOtp();
                 toast.info('New OTP sent!');
-                console.log(`🔄 Resent OTP: ${newOtp}`);
               }}
               className="w-full text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
             >

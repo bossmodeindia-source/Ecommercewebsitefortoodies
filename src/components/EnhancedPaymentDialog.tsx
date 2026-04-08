@@ -195,14 +195,12 @@ export function EnhancedPaymentDialog({
 
   const sendEmailOtp = () => {
     if (!email || !email.includes('@')) { toast.error('Please enter a valid email'); return; }
-    console.log(`📧 Email OTP sent to ${email}: 123456`);
     toast.success(`Verification code sent to ${email}`);
     setEmailOtpSent(true);
   };
 
   const sendMobileOtp = () => {
     if (!mobile || mobile.length < 10) { toast.error('Please enter a valid mobile number'); return; }
-    console.log(`📱 Mobile OTP sent to ${mobile}: 123456`);
     toast.success(`Verification code sent to ${mobile}`);
     setMobileOtpSent(true);
   };

@@ -8,12 +8,50 @@ import { storageUtils } from '../utils/storage';
 import { Product, User, ThreeDModelConfig } from '../types';
 import { toast } from 'sonner@2.0.3';
 import { Badge } from './ui/badge';
-import { designsApi } from '../utils/supabaseApi';
+import { productsApi } from '../utils/supabaseApi';
 
 interface TwoDStudioPageProps {
   onBack: () => void;
   user: User;
   onUserUpdate: (user: User) => void;
+}
+
+// Map Supabase product format → local Product type
+function mapDbProduct(dbProd: any): Product {
+  const variations = dbProd.product_variations?.length
+    ? dbProd.product_variations.map((v: any) => ({
+        id: v.id,
+        color: v.color || '',
+        size: v.size || '',
+        price: (parseFloat(dbProd.base_price) || 0) + (parseFloat(v.additional_price) || 0),
+        stock: v.stock_quantity ?? v.stock ?? 0,
+        sku: v.sku,
+      }))
+    : (Array.isArray(dbProd.variations) ? dbProd.variations : []);
+
+  const imgs = Array.isArray(dbProd.images) ? dbProd.images
+    : (dbProd.image_url ? [dbProd.image_url] : []);
+
+  return {
+    id: dbProd.id,
+    name: dbProd.name || '',
+    description: dbProd.description || '',
+    category: dbProd.category || dbProd.category_id || '',
+    basePrice: parseFloat(dbProd.base_price) || 0,
+    variations,
+    images: imgs,
+    image: imgs[0] || dbProd.image || '',
+    gender: dbProd.gender || 'unisex',
+    printingMethods: dbProd.printing_methods || dbProd.printingMethods || [],
+    isActive: dbProd.is_active ?? true,
+    createdAt: dbProd.created_at || dbProd.createdAt || new Date().toISOString(),
+    allowPrepaid: dbProd.allow_prepaid ?? true,
+    allowPostpaid: dbProd.allow_postpaid ?? true,
+    partialPaymentPercentage: dbProd.partial_payment_percentage || 30,
+    codExtraCharge: dbProd.cod_extra_charge || 50,
+    customDesignAllowPostpaid: dbProd.custom_design_allow_postpaid ?? false,
+    customDesignPartialPaymentPercentage: dbProd.custom_design_partial_payment_percentage || 100,
+  };
 }
 
 export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPageProps) {
@@ -30,37 +68,38 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
   }, []);
 
   useEffect(() => {
-    loadProducts();
-  }, [user]);
-
-  useEffect(() => {
     filterProducts();
   }, [selectedCategory, selectedBrand, products]);
 
-  const loadProducts = () => {
-    const allProducts = storageUtils.getProducts();
-    const productsWithModels = allProducts.filter(p => {
-      const config = storageUtils.get3DModelConfigByProductId(p.id);
-      return config !== null;
-    });
-    setProducts(productsWithModels);
+  const loadProducts = async () => {
+    // Try Supabase first, fall back to localStorage
+    let allProducts: Product[] = [];
+    try {
+      const dbProds = await productsApi.getAll();
+      if (dbProds && dbProds.length > 0) {
+        allProducts = dbProds.map(mapDbProduct);
+      }
+    } catch {
+      // silent
+    }
 
-    console.log('=== 2D STUDIO PAGE LOADED ===');
-    console.log('Total products in store:', allProducts.length);
-    console.log('Products with 2D models:', productsWithModels.length);
-    console.log('Products with models:', productsWithModels.map(p => ({ id: p.id, name: p.name, category: p.category })));
+    // Fallback to localStorage if Supabase returned nothing
+    if (allProducts.length === 0) {
+      allProducts = storageUtils.getProducts();
+    }
+
+    // Only show products that have a 2D model config assigned
+    const productsWithModels = allProducts.filter(p =>
+      storageUtils.get3DModelConfigByProductId(p.id) !== null
+    );
+    setProducts(productsWithModels);
   };
 
   const filterProducts = () => {
     let filtered = [...products];
-
     if (selectedCategory !== 'All') {
       filtered = filtered.filter(p => p.category.toLowerCase() === selectedCategory.toLowerCase());
     }
-
-    // Brand filtering could be added here if you have a brand field in products
-    // For now, we'll keep it simple with just category filtering
-
     setFilteredProducts(filtered);
   };
 
@@ -71,33 +110,19 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
       return;
     }
 
-    // Validate configuration has required fields
     const errors: string[] = [];
-    
-    if (!config.availableColors || config.availableColors.length === 0) {
-      errors.push('colors');
-    }
-    if (!config.availableSizes || config.availableSizes.length === 0) {
-      errors.push('sizes');
-    }
-    if (!config.availableFabrics || config.availableFabrics.length === 0) {
-      errors.push('fabrics');
-    }
-    if (!config.printingMethods || config.printingMethods.length === 0) {
-      errors.push('printing methods');
-    }
+    if (!config.availableColors || config.availableColors.length === 0) errors.push('colors');
+    if (!config.availableSizes || config.availableSizes.length === 0) errors.push('sizes');
+    if (!config.availableFabrics || config.availableFabrics.length === 0) errors.push('fabrics');
+    if (!config.printingMethods || config.printingMethods.length === 0) errors.push('printing methods');
 
     if (errors.length > 0) {
-      toast.error(
-        `Configuration incomplete: Missing ${errors.join(', ')}`,
-        {
-          description: 'Please complete the model configuration in Admin Panel → 2D Model Manager'
-        }
-      );
+      toast.error(`Configuration incomplete: Missing ${errors.join(', ')}`, {
+        description: 'Please complete the model configuration in Admin Panel → 2D Model Manager',
+      });
       return;
     }
 
-    // All validations passed, open designer
     setSelectedProduct(product);
     setModelConfig(config);
     setIsDesignerOpen(true);
@@ -106,7 +131,7 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
   const handleSaveDesign = (design: any) => {
     const updatedUser = { ...user };
     updatedUser.savedCustomerDesigns = updatedUser.savedCustomerDesigns || [];
-    
+
     const savedDesign = {
       id: Date.now().toString(),
       name: `${selectedProduct?.name} - Custom Design`,
@@ -119,7 +144,7 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
       designUploads: design.designUploads,
       createdAt: new Date().toISOString(),
       thumbnailUrl: design.thumbnailUrl,
-      category: selectedProduct?.category
+      category: selectedProduct?.category,
     };
 
     updatedUser.savedCustomerDesigns.push(savedDesign);
@@ -127,21 +152,14 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
     onUserUpdate(updatedUser);
 
     toast.success('Design saved successfully!', {
-      description: 'Your custom design has been saved to your profile.'
+      description: 'Your custom design has been saved to your profile.',
     });
 
     setIsDesignerOpen(false);
     setSelectedProduct(null);
   };
 
-  // Get unique categories from products
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
-  
-  // Count products per category
-  const getCategoryCount = (category: string) => {
-    if (category === 'All') return products.length;
-    return products.filter(p => p.category === category).length;
-  };
 
   const resetFilters = () => {
     setSelectedCategory('All');
@@ -255,7 +273,7 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
                               <Palette className="w-20 h-20 text-[#d4af37]/20" />
                             </div>
                           )}
-                          
+
                           {/* Hover Overlay */}
                           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center z-20">
                             <div className="text-center space-y-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
@@ -266,7 +284,7 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Product Info */}
                         <CardContent className="p-6 bg-[#0a0a0a] relative z-20">
                           <div className="space-y-3">
@@ -275,7 +293,7 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
                             </h3>
                             <div className="flex items-center justify-between">
                               <span className="text-[#d4af37] font-bold text-2xl">
-                                ₹{Math.min(...product.variations.map(v => v.price))}
+                                ₹{product.variations.length > 0 ? Math.min(...product.variations.map(v => v.price)) : product.basePrice}
                               </span>
                               <Badge className="bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30 font-bold tracking-widest text-[10px] uppercase px-3 py-1 rounded-full">
                                 {product.category}
@@ -328,12 +346,10 @@ export function TwoDStudioPage({ onBack, user, onUserUpdate }: TwoDStudioPagePro
             setModelConfig(null);
           }}
           onSaveDesign={(design) => {
-            console.log('Design saved from studio page:', design);
             toast.success('Design saved successfully!');
             setIsDesignerOpen(false);
             setSelectedProduct(null);
             setModelConfig(null);
-            // Refresh user data
             const updatedUser = storageUtils.getCurrentUser();
             if (updatedUser) {
               onUserUpdate(updatedUser);

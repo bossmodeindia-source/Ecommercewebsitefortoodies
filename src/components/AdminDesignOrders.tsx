@@ -61,8 +61,6 @@ export function AdminDesignOrders() {
       // ✅ NOW USING SUPABASE DATABASE
       const supabaseDesigns = await designsApi.getAll();
       
-      console.log('📦 Loaded designs from Supabase:', supabaseDesigns.length);
-      
       // Transform Supabase data structure to match component expectations
       const transformedDesigns: DesignData[] = supabaseDesigns.map((sd: any) => {
         // Parse design_uploads JSONB field
@@ -116,7 +114,6 @@ export function AdminDesignOrders() {
         description: `${transformedDesigns.filter(d => d.paymentStatus === 'paid').length} paid orders ready for manufacturing`
       });
     } catch (error) {
-      console.error('Failed to load designs from Supabase:', error);
       // Silently fall back to empty designs - don't show error toast
       setDesigns([]);
     } finally {
@@ -184,7 +181,6 @@ export function AdminDesignOrders() {
         description: `Order #${orderNumber} ready for production`
       });
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
       toast.error('Failed to generate PDF');
     } finally {
       setDownloadingId(null);
@@ -216,7 +212,6 @@ export function AdminDesignOrders() {
         description: 'ZIP file contains all customer uploaded images'
       });
     } catch (error) {
-      console.error('Failed to download files:', error);
       toast.error('Failed to download design files');
     }
   };

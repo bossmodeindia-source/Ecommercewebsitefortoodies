@@ -4,37 +4,184 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Textarea } from './ui/textarea';
-import { Building2, Mail, Phone, Globe, MapPin, Save, Facebook, Instagram, Twitter, Linkedin, CreditCard, Banknote, Eye, EyeOff, FileText, Monitor, MessageCircle, Image as ImageIcon, Upload, X } from 'lucide-react';
+import { Building2, Mail, Phone, Globe, MapPin, Save, Facebook, Instagram, Twitter, Linkedin, CreditCard, Banknote, Eye, EyeOff, FileText, Monitor, MessageCircle, Image as ImageIcon, Upload, X, Loader2 } from 'lucide-react';
 import { storageUtils } from '../utils/storage';
+import { settingsApi } from '../utils/supabaseApi';
+import storageHelpers from '../utils/supabaseStorageHelpers';
 import { BusinessInfo } from '../types';
 import { toast } from 'sonner@2.0.3';
 import { Switch } from './ui/switch';
 
-export function BusinessSettings() {
-  const [businessInfo, setBusinessInfo] = useState<BusinessInfo>(storageUtils.getBusinessInfo());
-  const [loading, setLoading] = useState(false);
-  const [heroImagePreview, setHeroImagePreview] = useState<string>(businessInfo.heroImage || '');
+// ── helpers to map between camelCase (app) ↔ snake_case (Supabase) ──────────
+function dbToBusinessInfo(db: any): BusinessInfo {
+  return {
+    companyName: db.company_name || '',
+    address: db.address || '',
+    city: db.city || '',
+    state: db.state || '',
+    pincode: db.pincode || '',
+    country: db.country || 'India',
+    phone: db.phone || '',
+    email: db.email || '',
+    supportEmail: db.support_email || '',
+    whatsapp: db.whatsapp || '',
+    gstin: db.gstin || '',
+    website: db.website || '',
+    supportHours: db.support_hours || '',
+    heroImage: db.hero_image || '',
+    neckLabelTemplate: db.neck_label_template || '',
+    thankYouCardTemplate: db.thank_you_card_template || '',
+    boxTemplate: db.box_template || '',
+    socialMedia: db.social_media || {},
+    bankDetails: db.bank_details || {
+      accountName: '', accountNumber: '', ifscCode: '', bankName: '', branchName: '',
+    },
+    visibility: db.visibility || {
+      website: {
+        showAddress: true, showPhone: true, showEmail: true,
+        showSupportEmail: true, showSupportHours: true,
+        showSocialMedia: true, showGSTIN: false, showWhatsApp: true,
+      },
+      invoice: {
+        showFullAddress: true, showPhone: true, showEmail: true,
+        showGSTIN: true, showWebsite: true, showBankDetails: true,
+      },
+    },
+  };
+}
 
-  const handleSave = () => {
+function businessInfoToDb(info: BusinessInfo): Record<string, any> {
+  return {
+    company_name: info.companyName,
+    address: info.address,
+    city: info.city,
+    state: info.state,
+    pincode: info.pincode,
+    country: info.country,
+    phone: info.phone,
+    email: info.email,
+    support_email: info.supportEmail,
+    whatsapp: info.whatsapp,
+    gstin: info.gstin,
+    website: info.website,
+    support_hours: info.supportHours,
+    hero_image: info.heroImage,
+    neck_label_template: info.neckLabelTemplate,
+    thank_you_card_template: info.thankYouCardTemplate,
+    box_template: info.boxTemplate,
+    social_media: info.socialMedia,
+    bank_details: info.bankDetails,
+    visibility: info.visibility,
+  };
+}
+
+const EMPTY_BUSINESS_INFO: BusinessInfo = {
+  companyName: 'Toodies',
+  address: '',
+  city: 'Bangalore',
+  state: 'Karnataka',
+  pincode: '',
+  country: 'India',
+  phone: '+91 98865 10858',
+  email: 'hello@toodies.com',
+  supportEmail: '',
+  whatsapp: '+919886510858',
+  gstin: '',
+  website: '',
+  supportHours: '',
+  heroImage: '',
+  socialMedia: {},
+  bankDetails: { accountName: '', accountNumber: '', ifscCode: '', bankName: '', branchName: '' },
+  visibility: {
+    website: {
+      showAddress: true, showPhone: true, showEmail: true,
+      showSupportEmail: true, showSupportHours: true,
+      showSocialMedia: true, showGSTIN: false, showWhatsApp: true,
+    },
+    invoice: {
+      showFullAddress: true, showPhone: true, showEmail: true,
+      showGSTIN: true, showWebsite: true, showBankDetails: true,
+    },
+  },
+};
+
+export function BusinessSettings() {
+  const [businessInfo, setBusinessInfo] = useState<BusinessInfo>(EMPTY_BUSINESS_INFO);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [heroImagePreview, setHeroImagePreview] = useState<string>('');
+  const [isUploadingHero, setIsUploadingHero] = useState(false);
+
+  // Load from Supabase on mount; fall back to localStorage
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const db = await settingsApi.getBusiness();
+        if (db && Object.keys(db).length > 0) {
+          const mapped = dbToBusinessInfo(db);
+          setBusinessInfo(mapped);
+          setHeroImagePreview(mapped.heroImage || '');
+        } else {
+          // Supabase empty — check localStorage fallback
+          const local = storageUtils.getBusinessInfo();
+          setBusinessInfo(local);
+          setHeroImagePreview(local.heroImage || '');
+        }
+      } catch {
+        const local = storageUtils.getBusinessInfo();
+        setBusinessInfo(local);
+        setHeroImagePreview(local.heroImage || '');
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const handleSave = async () => {
     setLoading(true);
-    storageUtils.saveBusinessInfo(businessInfo);
-    setTimeout(() => {
-      toast.success('Business information saved successfully!');
+    try {
+      // Primary: save to Supabase
+      await settingsApi.saveBusiness(businessInfoToDb(businessInfo));
+      // Mirror to localStorage so LandingPage has it without a fetch
+      storageUtils.saveBusinessInfo(businessInfo);
+      toast.success('Business information saved to Supabase successfully!');
+    } catch (err: any) {
+      // Fallback: save to localStorage so changes aren't lost
+      storageUtils.saveBusinessInfo(businessInfo);
+      toast.warning('Saved locally (Supabase unavailable): ' + (err?.message || 'Check connection'));
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
-  const handleHeroImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHeroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Hero image must be less than 10MB');
+      return;
+    }
+    setIsUploadingHero(true);
+    try {
+      // Try Supabase Storage first
+      const url = await storageHelpers.uploadAdminAsset('hero', file);
+      setHeroImagePreview(url);
+      setBusinessInfo({ ...businessInfo, heroImage: url });
+      toast.success('Hero image uploaded to Storage! Remember to Save.');
+    } catch {
+      // Fallback to base64
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
         setHeroImagePreview(result);
         setBusinessInfo({ ...businessInfo, heroImage: result });
-        toast.success('Hero image uploaded! Remember to save changes.');
+        toast.success('Hero image loaded (local preview). Remember to Save.');
       };
       reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingHero(false);
+      e.target.value = '';
     }
   };
 
@@ -51,11 +198,20 @@ export function BusinessSettings() {
         ...businessInfo.visibility!,
         [context]: {
           ...businessInfo.visibility![context],
-          [field]: value
-        }
-      }
+          [field]: value,
+        },
+      },
     });
   };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+        <span className="ml-3 text-slate-400">Loading business info…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

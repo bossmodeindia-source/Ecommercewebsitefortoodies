@@ -34,12 +34,8 @@ export async function initializeDatabase() {
     console.log('   ✓ Admin account created');
     console.log('   ✓ Sample products added');
     console.log('   ✓ Business settings configured');
-    console.log('   �� Categories set up');
+    console.log('   ✓ Categories set up');
     console.log('   ✓ Printing methods configured');
-    console.log('\n🔐 Admin Login:');
-    console.log('   Email: m78787531@gmail.com');
-    console.log('   Password: 9886510858@TcbToponeAdmin');
-    console.log('\n⚠️  IMPORTANT: Password can be reset via Gmail verification.');
     
     return { success: true };
   } catch (error: any) {
